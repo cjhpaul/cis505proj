@@ -1,0 +1,26 @@
+CIS 505 Milestone 1
+
+Members: Jeehwan Cho, Jennifer Hui, and Saad Anwar
+Schedule of work: 
+ 
+-Design protocols and refine plan by 4/8; 
+-Submit milestone 2, write skeletal code with basic functionalities (multiple clients join a server and chat, not considering robustness), set up code sharing/version control mechanism, and set up test environment by 4/15; 
+-Leader election, robustness, unit test for robustness, and start writing documents by 4/21;
+-Wrap up, and polish code and document by 4/31.
+ 
+"Rough" division of labor:
+Testing/documentation
+	(i) Reasonable sized network of clients
+	(ii) Simple case - starting chat program, adding clients, sending messages, graceful exits
+	(iii) Crashes and ungraceful exits, dropped packets, message ordering changes (how?)
+Robustness
+	(i) Leader crashing
+	(ii) Client crashing
+	(iii) Message drops - how do we even test and recover from a ‘false negative’
+	(iv) Unexpected inputs, buffer overflows and avoiding segfaults as much as possible
+Overall architecture (Design, skeletal code with basic functionalities)
+	(i) Data Structures
+	(ii) Message formats
+	(iii) Design constraints (how many clients, how long a message can be, etc)
+	(iv) Election protocol
+	(v) Keep alive messages to determine crashes
