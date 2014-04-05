@@ -12,8 +12,7 @@ void *ReceiveThreadWorker (void *);
 struct anode* g_alist = NULL;
 
 int DoSequencerWork(char* name){
-	struct sockaddr_in myaddr;	/* our address */
-	socklen_t slen = sizeof(g_remaddr);
+	struct sockaddr_in myaddr;
 	if ((g_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		perror("cannot create socket\n");
 		return 0;
@@ -44,7 +43,6 @@ int DoSequencerWork(char* name){
 	//send_thread
 	char msg[MSGSIZE];
 	char send_data[BUFSIZE];
-	char send_data_with_name[BUFSIZE + MAXNAME];
 	//todo: need to gracefully exit upon EOF
 	//todo: it SHOULD NOT USE g_remaddr ANY MORE!
 	while(fgets(msg, sizeof(msg), stdin) != NULL){
@@ -58,25 +56,26 @@ int DoSequencerWork(char* name){
 
 void* ReceiveThreadWorker (void *p){
 	int recvlen;
-	socklen_t slen = sizeof(g_remaddr);
+	struct sockaddr_in addr;
+	socklen_t slen = sizeof(addr);
 	char recv_data[BUFSIZE]; //todo: max length should be adjusted
 	while(1){
 		//clear buffer
 		memset(&recv_data[0], 0, sizeof(recv_data));
 		//get a msg
-		recvlen = recvfrom(g_fd, recv_data, BUFSIZE, 0, (struct sockaddr *)&g_remaddr, &slen);
+		recvlen = recvfrom(g_fd, recv_data, BUFSIZE, 0, (struct sockaddr *)&addr, &slen);
 		//parse & do operation with msg
-		SequencerController(recv_data);
+		SequencerController(recv_data, addr);
 	}
 	pthread_exit (NULL);
 }
 
-void SequencerController(char* recv_data){
+void SequencerController(char* recv_data, sockaddr_in addr){
 	char *cmd;
 	cmd = strsep(&recv_data, ":");
 	//register ip, port, name etc
 	if (strcmp(cmd, "reg") == 0) {
-		Push(&g_alist, g_remaddr, recv_data);
+		Push(&g_alist, addr, recv_data);
 		//debug
 		char buff[1024];
 	    ShowList(g_alist, buff);
@@ -86,7 +85,7 @@ void SequencerController(char* recv_data){
 	else if (strcmp(cmd, "msg") == 0) {
 		//get the name
 		char name[MAXNAME];
-		GetNameByAddr(g_alist, g_remaddr, name);
+		GetNameByAddr(g_alist, addr, name);
 		//form msg to send
 		char send_data[BUFSIZE];
 		sprintf(send_data, "%s:: %s", name, recv_data);
