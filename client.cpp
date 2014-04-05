@@ -4,20 +4,26 @@
 #include "limits.h"
 
 int g_fdclient;
+char g_name[MAXNAME];
+char g_server[20];
+char g_port[10];
 struct sockaddr_in g_remaddrclient;
+
 void *ReceiveThreadWorkerClient (void *);
 
 int DoClientWork(char* name, char* port){
 	char *server;
 	server = strsep(&port, ":");
 
+	//setup for global variables
+	strcpy(g_name, name);
+	strcpy(g_server, server);
+	strcpy(g_port, port);
+
 	struct sockaddr_in myaddr, g_remaddrclient;
 	socklen_t slen = sizeof(g_remaddrclient);
 	if ((g_fdclient=socket(AF_INET, SOCK_DGRAM, 0))==-1)
 		printf("socket created\n");
-
-	//todo: get proper ip and port
-	printf("%s joining a new chat on %s:%s, listening on someip:port\n", name, server, port);
 
 	memset((char *)&myaddr, 0, sizeof(myaddr));
 	myaddr.sin_family = AF_INET;
@@ -35,9 +41,6 @@ int DoClientWork(char* name, char* port){
 		exit(1);
 	}
 
-	printf("Succeeded, current users:\n");
-	//todo: show user
-
 	//receive_thread
 	pthread_t pid_receive_thread;
 	pthread_create (&pid_receive_thread, NULL, &ReceiveThreadWorkerClient, NULL);
@@ -47,6 +50,7 @@ int DoClientWork(char* name, char* port){
 	char msg_buffer[MSGSIZE];
 	
 	//register client info with sequencer
+	//once sequencer gets reg msg, it will send user list
 	strcpy(send_data, "reg:");
 	strcat(send_data, name);
 	sendto(g_fdclient, send_data, strlen(send_data), 0, (struct sockaddr *)&g_remaddrclient, slen);
@@ -59,6 +63,7 @@ int DoClientWork(char* name, char* port){
 			exit(1);
 		}
 	}
+	pthread_cancel(pid_receive_thread);
 	pthread_join(pid_receive_thread, NULL);
 	close(g_fdclient);
 	return 0;
@@ -72,8 +77,32 @@ void* ReceiveThreadWorkerClient (void *p){
 		recvlen = recvfrom(g_fdclient, recv_data, BUFSIZE, 0, (struct sockaddr *)&g_remaddrclient, &slen);
 		if (recvlen >= 0) {
 			recv_data[recvlen] = 0;	/* expect a printable string - terminate it */
-			printf("%s", recv_data);
+			// printf("%s", recv_data);
+			ClientController(recv_data);
 		}
 	}
 	pthread_exit (NULL);
+}
+
+//controller for received msg
+void ClientController(char* recv_data){
+	char *cmd;
+	cmd = strsep(&recv_data, ":");
+	//response to register req, it should get user name
+	//protocol: reg:ip:port:list
+	if (strcmp(cmd, "reg") == 0){
+		char myip[20];
+		char myport[10];
+		cmd = strsep(&recv_data, ":");
+		strcpy(myip, cmd);
+		cmd = strsep(&recv_data, ":");
+		strcpy(myport, cmd);
+		printf("%s joining a new chat on %s:%s, listening on %s:%s\n", g_name, g_server, g_port, myip, myport);
+		printf("Succeeded, current users:\n");
+		printf("%s", recv_data);
+	}
+	else if (strcmp(cmd, "msg") == 0) {
+		printf("%s", recv_data);		
+	}
+	return;
 }

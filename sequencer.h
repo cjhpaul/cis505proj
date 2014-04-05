@@ -7,3 +7,4 @@
 int DoSequencerWork(char*);
 void SequencerController(char*, sockaddr_in);
 void MultiCast(char*);
+void ShowListWithLeader(char*);

@@ -2,14 +2,15 @@
 #include "sequencer.h"
 #include "limits.h"
 #include "addrlist.h"
+#include "getip.h"
 #include <ifaddrs.h>
 #include <pthread.h>
-#define PORT 12346
+#define PORT 12346 //hardcoded for now
 
 int g_fd;
-struct sockaddr_in g_remaddr;
 void *ReceiveThreadWorker (void *);
-struct anode* g_alist = NULL;
+struct anode* g_alist = NULL; //keeps all clients info
+char g_leaderinfo[MAXNAME + 20]; //keeps leader/sequencer info
 
 int DoSequencerWork(char* name){
 	struct sockaddr_in myaddr;
@@ -26,11 +27,18 @@ int DoSequencerWork(char* name){
 		perror("bind failed");
 		return 0;
 	}
-	//todo: get proper ip and port
-	printf("%s started a new chat, listening on %s:%d\n", name, inet_ntoa(myaddr.sin_addr), PORT);
+
+	char ip[20];
+	GetIP(ip);
+	//update leader info
+	sprintf(g_leaderinfo, "%s %s:%d", name, ip, PORT);
+	printf("%s started a new chat, listening on %s:%d\n", name, ip, PORT);
 
 	printf("Succeeded, current users:\n");
-	//todo: show user
+	char userlist[BUFSIZE];
+	ShowListWithLeader(userlist);
+	printf("%s", userlist);
+	
 	printf("Waiting for others to join...\n");
 
 	//receive_thread
@@ -40,11 +48,11 @@ int DoSequencerWork(char* name){
 	//send_thread
 	char msg[MSGSIZE];
 	char send_data[BUFSIZE];
-	//todo: need to gracefully exit upon EOF
 	while(fgets(msg, sizeof(msg), stdin) != NULL){
-		sprintf(send_data, "%s:: %s", name, msg);
+		sprintf(send_data, "msg:%s:: %s", name, msg);
 		MultiCast(send_data);
     }
+    pthread_cancel(pid_receive_thread);
     pthread_join(pid_receive_thread, NULL);
 	close(g_fd);
 	return 0;
@@ -66,15 +74,32 @@ void* ReceiveThreadWorker (void *p){
 	pthread_exit (NULL);
 }
 
+//controller for received msg
 void SequencerController(char* recv_data, sockaddr_in addr){
 	char *cmd;
 	cmd = strsep(&recv_data, ":");
+	//when a client joins
 	//register ip, port, name etc
+	//protocol: reg:name
 	if (strcmp(cmd, "reg") == 0) {
+		char listbuffer[BUFSIZE];
+		char buffer[BUFSIZE];
+		// //first notice all other client EXCEPT the one that just joined
+		// //NOTICE Alice joined on 192.168.5.81:1923
+		// sprintf(buffer, "msg:NOTICE %s joined on %s:%d", recv_data, inet_ntoa(addr.sin_addr), addr.sin_port);
+		// printf("debug: %s", buffer);
+		// MultiCast(buffer);
+		// memset((char *)&buffer, 0, sizeof(buffer));
+
+		//add addr to address list		
 		Push(&g_alist, addr, recv_data);
-		//debug
-	    ShowList(g_alist);
-	    //end of debug
+		//protocol: reg:ip:port:list
+		
+		ShowListWithLeader(listbuffer);
+		sprintf(buffer, "reg:%s:%d:%s", inet_ntoa(addr.sin_addr), addr.sin_port, listbuffer);
+		//send a list of users to the client
+		sendto(g_fd, buffer, strlen(buffer), 0, 
+			(struct sockaddr *)&addr, sizeof(addr));
 	}//msg 
 	else if (strcmp(cmd, "msg") == 0) {
 		//get the name
@@ -82,7 +107,7 @@ void SequencerController(char* recv_data, sockaddr_in addr){
 		GetNameByAddr(g_alist, addr, name);
 		//form msg to send
 		char send_data[BUFSIZE];
-		sprintf(send_data, "%s:: %s", name, recv_data);
+		sprintf(send_data, "msg:%s:: %s", name, recv_data);
 		//multicast that msg to everyone that is connected
 		MultiCast(send_data);
 	} else {
@@ -104,6 +129,15 @@ void MultiCast(char* msg){
 		current = current->next;
 	}
 	//at last, sequencer gets the msg as well
-	printf("%s", msg);
+	char *cmd;
+	cmd = strsep(&msg, ":");
+	if (strcmp(cmd, "msg") == 0)
+		printf("%s", msg);
 	return;
+}
+void ShowListWithLeader(char* buffer){	
+	char alistbuffer[BUFSIZE];
+	ShowList(g_alist, alistbuffer);
+	sprintf(buffer, "%s (Leader)\n%s", g_leaderinfo, alistbuffer);
+	return;	
 }

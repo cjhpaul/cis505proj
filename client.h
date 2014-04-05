@@ -5,3 +5,4 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 int DoClientWork(char* name, char* ipport);
+void ClientController(char*);

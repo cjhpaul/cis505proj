@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 #include "limits.h"
+
+//todo: duplicate names can be buggy. add id
 struct anode{
 	sockaddr_in addr;
 	char name[MAXNAME];
@@ -12,7 +14,7 @@ struct anode{
 void Push(struct anode** headRef, sockaddr_in addr, char *name);
 void GetNameByAddr(struct anode* head, sockaddr_in addr, char* name);
 void DeleteList(struct anode** headRef);
-void ShowList(struct anode* head);
+void ShowList(struct anode* head, char* buffer);
 int CountList(struct anode* head);
 
 void addrtest();
