@@ -17,11 +17,6 @@ int DoSequencerWork(char* name){
 		perror("cannot create socket\n");
 		return 0;
 	}
-	
-	//todo: get proper ip and port
-	char ip[BUFSIZE];
-	strcpy(ip, "123:123:123:123");
-	printf("%s started a new chat, listening on %s:%d\n", name, ip, PORT);
 
 	memset((char *)&myaddr, 0, sizeof(myaddr));
 	myaddr.sin_family = AF_INET;
@@ -31,6 +26,8 @@ int DoSequencerWork(char* name){
 		perror("bind failed");
 		return 0;
 	}
+	//todo: get proper ip and port
+	printf("%s started a new chat, listening on %s:%d\n", name, inet_ntoa(myaddr.sin_addr), PORT);
 
 	printf("Succeeded, current users:\n");
 	//todo: show user
@@ -44,7 +41,6 @@ int DoSequencerWork(char* name){
 	char msg[MSGSIZE];
 	char send_data[BUFSIZE];
 	//todo: need to gracefully exit upon EOF
-	//todo: it SHOULD NOT USE g_remaddr ANY MORE!
 	while(fgets(msg, sizeof(msg), stdin) != NULL){
 		sprintf(send_data, "%s:: %s", name, msg);
 		MultiCast(send_data);
@@ -77,9 +73,7 @@ void SequencerController(char* recv_data, sockaddr_in addr){
 	if (strcmp(cmd, "reg") == 0) {
 		Push(&g_alist, addr, recv_data);
 		//debug
-		char buff[1024];
-	    ShowList(g_alist, buff);
-	    printf("registered: %s\n", buff);
+	    ShowList(g_alist);
 	    //end of debug
 	}//msg 
 	else if (strcmp(cmd, "msg") == 0) {

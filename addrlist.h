@@ -12,7 +12,7 @@ struct anode{
 void Push(struct anode** headRef, sockaddr_in addr, char *name);
 void GetNameByAddr(struct anode* head, sockaddr_in addr, char* name);
 void DeleteList(struct anode** headRef);
-void ShowList(struct anode* head, char* buffer);
+void ShowList(struct anode* head);
 int CountList(struct anode* head);
 
 void addrtest();

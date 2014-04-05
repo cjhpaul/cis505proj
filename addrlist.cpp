@@ -32,18 +32,20 @@ void DeleteList(struct anode** headRef){
 	*headRef = NULL;
 	return;
 }
-void ShowList(struct anode* head, char* buffer){
-	char line[50];
+void ShowList(struct anode* head){
+	char line[MAXNAME + 20];
+	char buffer[BUFSIZE];
 	strcpy(buffer, "");
 	struct anode* current = head;
 	while (current != NULL) {
-		sprintf(line, "%s %s:%d, ", 
+		sprintf(line, "%s %s:%d\n", 
 			current->name, 
 			inet_ntoa(current->addr.sin_addr), 
 			current->addr.sin_port);
 		strcat(buffer, line);
 		current = current->next;
 	}
+	printf("%s", buffer);
 	return;
 }
 int CountList(struct anode* head){
@@ -78,12 +80,9 @@ void addrtest() {
     char name[MAXNAME];
     strcpy(name, "blah");
     Push(&alist, *sa, name);
-    char buff[1024];
-    ShowList(alist, buff);
-    printf("out: %s\n", buff);
+    ShowList(alist);
     printf("count: %d\n", CountList(alist));
     DeleteList(&alist);
-    ShowList(alist, buff);
-    printf("out2: %s\n", buff);
+    ShowList(alist);
 	return;
 }
