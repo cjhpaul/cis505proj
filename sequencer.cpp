@@ -33,7 +33,6 @@ int DoSequencerWork(char* name){
 	//update leader info
 	sprintf(g_leaderinfo, "%s %s:%d", name, ip, PORT);
 	printf("%s started a new chat, listening on %s:%d\n", name, ip, PORT);
-
 	printf("Succeeded, current users:\n");
 	char userlist[BUFSIZE];
 	ShowListWithLeader(userlist);
@@ -68,8 +67,11 @@ void* ReceiveThreadWorker (void *p){
 		memset(&recv_data[0], 0, sizeof(recv_data));
 		//get a msg
 		recvlen = recvfrom(g_fd, recv_data, BUFSIZE, 0, (struct sockaddr *)&addr, &slen);
-		//parse & do operation with msg
-		SequencerController(recv_data, addr);
+		if (recvlen >= 0) {
+			recv_data[recvlen] = 0;
+			//parse & do operation with msg
+			SequencerController(recv_data, addr);
+		}
 	}
 	pthread_exit (NULL);
 }
@@ -80,32 +82,35 @@ void SequencerController(char* recv_data, sockaddr_in addr){
 	cmd = strsep(&recv_data, ":");
 	//when a client joins
 	//register ip, port, name etc
-	//protocol: reg:name
+	//in-protocol: reg:name
 	if (strcmp(cmd, "reg") == 0) {
 		char listbuffer[BUFSIZE];
 		char buffer[BUFSIZE];
-		// //first notice all other client EXCEPT the one that just joined
-		// //NOTICE Alice joined on 192.168.5.81:1923
-		// sprintf(buffer, "msg:NOTICE %s joined on %s:%d", recv_data, inet_ntoa(addr.sin_addr), addr.sin_port);
-		// printf("debug: %s", buffer);
-		// MultiCast(buffer);
-		// memset((char *)&buffer, 0, sizeof(buffer));
+		//first notice all other client EXCEPT the one that just joined
+		//NOTICE Alice joined on 192.168.5.81:1923
+		//out-protocol: msg:send_data
+		sprintf(buffer, "msg:NOTICE %s joined on %s:%d\n", recv_data, inet_ntoa(addr.sin_addr), addr.sin_port);
+		MultiCast(buffer);
+		memset((char *)&buffer, 0, sizeof(buffer));
 
 		//add addr to address list		
 		Push(&g_alist, addr, recv_data);
-		//protocol: reg:ip:port:list
 		
+		//out-protocol: reg:clientip:clientport:userlist
 		ShowListWithLeader(listbuffer);
 		sprintf(buffer, "reg:%s:%d:%s", inet_ntoa(addr.sin_addr), addr.sin_port, listbuffer);
 		//send a list of users to the client
 		sendto(g_fd, buffer, strlen(buffer), 0, 
 			(struct sockaddr *)&addr, sizeof(addr));
-	}//msg 
+	}
+	//msg
+	//in-protocol: msg:message
 	else if (strcmp(cmd, "msg") == 0) {
 		//get the name
 		char name[MAXNAME];
 		GetNameByAddr(g_alist, addr, name);
 		//form msg to send
+		//out-protocol: msg:name:: MessageToMulticast
 		char send_data[BUFSIZE];
 		sprintf(send_data, "msg:%s:: %s", name, recv_data);
 		//multicast that msg to everyone that is connected

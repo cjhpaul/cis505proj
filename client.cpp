@@ -51,11 +51,12 @@ int DoClientWork(char* name, char* port){
 	
 	//register client info with sequencer
 	//once sequencer gets reg msg, it will send user list
-	strcpy(send_data, "reg:");
-	strcat(send_data, name);
+	//out-protocol: reg:clientname
+	sprintf(send_data, "reg:%s", name);
 	sendto(g_fdclient, send_data, strlen(send_data), 0, (struct sockaddr *)&g_remaddrclient, slen);
 
 	while(fgets(msg_buffer, sizeof(msg_buffer), stdin) != NULL){
+		//out-protocol: msg:MessageToSendToSequencer
 		strcpy(send_data, "msg:");
 		strcat(send_data, msg_buffer);
 		if (sendto(g_fdclient, send_data, strlen(send_data), 0, (struct sockaddr *)&g_remaddrclient, slen)==-1) {
@@ -74,10 +75,13 @@ void* ReceiveThreadWorkerClient (void *p){
 	socklen_t slen = sizeof(g_remaddrclient);
 	char recv_data[BUFSIZE];
 	while(1){
+		//clear buffer
+		memset(&recv_data[0], 0, sizeof(recv_data));
+		//get a msg
 		recvlen = recvfrom(g_fdclient, recv_data, BUFSIZE, 0, (struct sockaddr *)&g_remaddrclient, &slen);
 		if (recvlen >= 0) {
-			recv_data[recvlen] = 0;	/* expect a printable string - terminate it */
-			// printf("%s", recv_data);
+			recv_data[recvlen] = 0;
+			//parse & do operation with msg
 			ClientController(recv_data);
 		}
 	}
@@ -89,7 +93,7 @@ void ClientController(char* recv_data){
 	char *cmd;
 	cmd = strsep(&recv_data, ":");
 	//response to register req, it should get user name
-	//protocol: reg:ip:port:list
+	//in-protocol: reg:clientip:clientport:userlist
 	if (strcmp(cmd, "reg") == 0){
 		char myip[20];
 		char myport[10];
@@ -101,6 +105,7 @@ void ClientController(char* recv_data){
 		printf("Succeeded, current users:\n");
 		printf("%s", recv_data);
 	}
+	//in-protocol: msg:MessageToThisClient
 	else if (strcmp(cmd, "msg") == 0) {
 		printf("%s", recv_data);		
 	}

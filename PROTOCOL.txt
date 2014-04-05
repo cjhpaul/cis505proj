@@ -1,0 +1,19 @@
+PROTOCOL:
+Let S be a sequencer, let C be a client, and let A be all. 
+
+Register:
+When client enters the chat for the first time,
+C->S reg:name
+S retrives address (ip/port) from recvfrom
+S multicasts notice to everybody except C
+S->A msg:NOTICE name joined on ip:port
+A prints the notice
+S adds C's address and name to address list
+S->C reg:ip:port:userlist
+C prints joining info, followed by current user list
+Done
+
+Message:
+C->S msg:Message
+S gets name by client's address, and extracts Message
+S->A msg:name:: Message
