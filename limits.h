@@ -1,0 +1,4 @@
+#define BUFSIZE 2048
+#define MSGSIZE 1024
+#define MAXCLIENT 5
+#define MAXNAME 20
