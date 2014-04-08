@@ -7,9 +7,8 @@ C->S reg:name
 S retrives address (ip/port) from recvfrom
 S multicasts notice to everybody except C
 S->A msg:NOTICE name joined on ip:port
-A prints the notice
 S adds C's address and name to address list
-S->C reg:ip:port:userlist
+S->C reg:clientip:clientport:userlist
 C prints joining info, followed by current user list
 Done
 

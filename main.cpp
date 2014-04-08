@@ -4,6 +4,7 @@
 #include "sequencer.h"
 #include "client.h"
 #include "addrlist.h"
+#include "limits.h"
 
 int main(int argc, char **argv)
 {
@@ -13,7 +14,12 @@ int main(int argc, char **argv)
 #endif
 
 	int result;
-	//todo: name length check
+	//name length check
+	if (strlen(argv[1]) >= MAXNAME)
+	{
+		printf("Name exceeds %d characters\n", MAXNAME);
+		return 0;
+	}
 	//sequencer
 	if (argc == 2){
 		result = DoSequencerWork(argv[1]);

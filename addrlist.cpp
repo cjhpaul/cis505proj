@@ -3,6 +3,8 @@
 #include <ifaddrs.h>
 
 void Push(struct anode** headRef, sockaddr_in addr, char *name) {
+	if (CountList(*headRef) >= MAXCLIENT)
+		return;
 	struct anode* newNode = new anode;
 	memcpy(&(newNode->addr), &addr, sizeof(newNode->addr));
 	strcpy(newNode->name, name);
@@ -11,11 +13,33 @@ void Push(struct anode** headRef, sockaddr_in addr, char *name) {
 	return;	
 }
 
+void Push(struct anode** headRef, char* ip, short port, char *name) {
+	printf("*debug*: %s:%d:%s\n", ip, port, name);
+	if (CountList(*headRef) >= MAXCLIENT)
+		return;
+	struct anode* newNode = new anode;
+	struct sockaddr_in testAddr;
+	memset((char *)&testAddr, 0, sizeof(testAddr));
+	testAddr.sin_family = AF_INET;
+	inet_aton(ip, &testAddr.sin_addr);
+	testAddr.sin_port = htons(port);
+	memcpy(&(newNode->addr), &testAddr, sizeof(newNode->addr));
+	strcpy(newNode->name, name);
+	newNode->next = *headRef;
+	*headRef = newNode;
+	return;	
+}
+
 void GetNameByAddr(struct anode* head, sockaddr_in addr, char* name){
 	struct anode* current = head;
+	char addrip[20], curip[20];
+	strcpy(addrip, inet_ntoa(addr.sin_addr));
 	while (current != NULL) {
-		if (memcmp(&(current->addr), &addr, sizeof(addr)) == 0)
+		strcpy(curip, inet_ntoa(current->addr.sin_addr));
+		if (addr.sin_port == current->addr.sin_port &&
+			strcmp(addrip, curip) == 0) {
 			strcpy(name, current->name);
+		}
 		current = current->next;
 	}
 	return;

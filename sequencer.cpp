@@ -30,7 +30,7 @@ int DoSequencerWork(char* name){
 
 	char ip[20];
 	GetIP(ip);
-	//update leader info
+	//update leader info and print current users
 	sprintf(g_leaderinfo, "%s %s:%d", name, ip, PORT);
 	printf("%s started a new chat, listening on %s:%d\n", name, ip, PORT);
 	printf("Succeeded, current users:\n");
@@ -94,7 +94,8 @@ void SequencerController(char* recv_data, sockaddr_in addr){
 		memset((char *)&buffer, 0, sizeof(buffer));
 
 		//add addr to address list		
-		Push(&g_alist, addr, recv_data);
+		// Push(&g_alist, addr, recv_data);
+		Push(&g_alist, inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), recv_data);
 		
 		//out-protocol: reg:clientip:clientport:userlist
 		ShowListWithLeader(listbuffer);
