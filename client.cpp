@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <pthread.h>
+#include "addrlist.h"
 #include "client.h"
 #include "limits.h"
 
@@ -8,6 +9,7 @@ char g_name[MAXNAME];
 char g_server[20];
 char g_port[10];
 struct sockaddr_in g_remaddrclient;
+struct anode* g_alistclient = NULL;
 
 void *ReceiveThreadWorkerClient (void *);
 
@@ -109,5 +111,31 @@ void ClientController(char* recv_data){
 	else if (strcmp(cmd, "msg") == 0) {
 		printf("%s", recv_data);		
 	}
+	else if (strcmp(cmd, "upd") == 0) {
+		UpdateClientList(recv_data);
+	}
 	return;
+}
+
+// name:ip:port:...:end
+void UpdateClientList(char* recv_data){
+	char *token;
+	char name[MAXNAME], ip[20], port[10];
+	//initialize the client list
+	DeleteList(&g_alistclient);
+	//add clients to the list
+	while ((token = strsep(&recv_data, ":")) != NULL){
+		if (strcmp(token, "end") == 0)
+			break;
+		strcpy(name, token);
+		if ((token = strsep(&recv_data, ":")) == NULL){
+			printf("error\n");
+		}
+		strcpy(ip, token);
+		if ((token = strsep(&recv_data, ":")) == NULL){
+			printf("error\n");
+		}
+		strcpy(port, token);
+		Push(&g_alistclient, ip, ntohs(atoi(port)), name);
+	}
 }

@@ -6,3 +6,4 @@
 #include <arpa/inet.h>
 int DoClientWork(char* name, char* ipport);
 void ClientController(char*);
+void UpdateClientList(char*);

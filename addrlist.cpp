@@ -10,11 +10,10 @@ void Push(struct anode** headRef, sockaddr_in addr, char *name) {
 	strcpy(newNode->name, name);
 	newNode->next = *headRef;
 	*headRef = newNode;
-	return;	
+	return;
 }
 
 void Push(struct anode** headRef, char* ip, short port, char *name) {
-	printf("*debug*: %s:%d:%s\n", ip, port, name);
 	if (CountList(*headRef) >= MAXCLIENT)
 		return;
 	struct anode* newNode = new anode;
@@ -58,7 +57,6 @@ void DeleteList(struct anode** headRef){
 }
 void ShowList(struct anode* head, char* buffer){
 	char line[MAXNAME + 20];
-	// char buffer[BUFSIZE];
 	strcpy(buffer, "");
 	struct anode* current = head;
 	while (current != NULL) {
@@ -72,6 +70,7 @@ void ShowList(struct anode* head, char* buffer){
 	// printf("%s", buffer);
 	return;
 }
+
 int CountList(struct anode* head){
 	struct anode* current = head;
 	int count = 0;

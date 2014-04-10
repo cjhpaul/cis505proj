@@ -16,3 +16,8 @@ Message:
 C->S msg:Message
 S gets name by client's address, and extracts Message
 S->A msg:name:: Message
+
+Update the list of clients (no leader info):
+When client enters the chat and wants to register,
+S->A upd:name1:ip1:port1:name2:ip2:port2:...:end
+Each client updates their client list.

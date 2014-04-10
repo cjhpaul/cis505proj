@@ -94,9 +94,13 @@ void SequencerController(char* recv_data, sockaddr_in addr){
 		memset((char *)&buffer, 0, sizeof(buffer));
 
 		//add addr to address list		
-		// Push(&g_alist, addr, recv_data);
-		Push(&g_alist, inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), recv_data);
+		Push(&g_alist, addr, recv_data);
+		// Push(&g_alist, inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), recv_data);
 		
+		//todo: send upd:name1:ip1:port1:name2:ip2:port2:...:end
+		GetUpdateList(buffer);
+		MultiCast(buffer);
+
 		//out-protocol: reg:clientip:clientport:userlist
 		ShowListWithLeader(listbuffer);
 		sprintf(buffer, "reg:%s:%d:%s", inet_ntoa(addr.sin_addr), addr.sin_port, listbuffer);
@@ -146,4 +150,20 @@ void ShowListWithLeader(char* buffer){
 	ShowList(g_alist, alistbuffer);
 	sprintf(buffer, "%s (Leader)\n%s", g_leaderinfo, alistbuffer);
 	return;	
+}
+
+void GetUpdateList(char* buffer){
+	char line[MAXNAME + 20];
+	strcpy(buffer, "upd:");
+	struct anode* current = g_alist;
+	while (current != NULL) {
+		sprintf(line, "%s:%s:%d:", 
+			current->name, 
+			inet_ntoa(current->addr.sin_addr), 
+			current->addr.sin_port);
+		strcat(buffer, line);
+		current = current->next;
+	}
+	strcat(buffer, "end");
+	return;
 }
