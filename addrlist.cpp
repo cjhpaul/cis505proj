@@ -2,6 +2,8 @@
 #include <sys/socket.h>
 #include <ifaddrs.h>
 
+struct anode* g_alist = NULL;
+
 void Push(struct anode** headRef, sockaddr_in addr, char *name) {
 	if (CountList(*headRef) >= MAXCLIENT)
 		return;

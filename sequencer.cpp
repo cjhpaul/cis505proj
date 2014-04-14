@@ -9,7 +9,6 @@
 
 int g_fd;
 void *ReceiveThreadWorker (void *);
-struct anode* g_alist = NULL; //keeps all clients info
 char g_leaderinfo[MAXNAME + 20]; //keeps leader/sequencer info
 
 int DoSequencerWork(char* name){
@@ -97,7 +96,7 @@ void SequencerController(char* recv_data, sockaddr_in addr){
 		Push(&g_alist, addr, recv_data);
 		// Push(&g_alist, inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), recv_data);
 		
-		//todo: send upd:name1:ip1:port1:name2:ip2:port2:...:end
+		//send upd:name1:ip1:port1:name2:ip2:port2:...:end
 		GetUpdateList(buffer);
 		MultiCast(buffer);
 

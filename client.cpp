@@ -9,14 +9,12 @@ char g_name[MAXNAME];
 char g_server[20];
 char g_port[10];
 struct sockaddr_in g_remaddrclient;
-struct anode* g_alistclient = NULL;
 
 void *ReceiveThreadWorkerClient (void *);
 
 int DoClientWork(char* name, char* port){
 	char *server;
 	server = strsep(&port, ":");
-
 	//setup for global variables
 	strcpy(g_name, name);
 	strcpy(g_server, server);
@@ -122,7 +120,7 @@ void UpdateClientList(char* recv_data){
 	char *token;
 	char name[MAXNAME], ip[20], port[10];
 	//initialize the client list
-	DeleteList(&g_alistclient);
+	DeleteList(&g_alist);
 	//add clients to the list
 	while ((token = strsep(&recv_data, ":")) != NULL){
 		if (strcmp(token, "end") == 0)
@@ -136,6 +134,6 @@ void UpdateClientList(char* recv_data){
 			printf("error\n");
 		}
 		strcpy(port, token);
-		Push(&g_alistclient, ip, ntohs(atoi(port)), name);
+		Push(&g_alist, ip, ntohs(atoi(port)), name);
 	}
 }

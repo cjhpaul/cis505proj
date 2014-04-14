@@ -10,6 +10,9 @@ struct anode{
 	char name[MAXNAME];
 	struct anode *next;
 };
+
+extern struct anode* g_alist; //keeps all clients info
+
 //linked list functions (ref: http://cslibrary.stanford.edu/103/)
 void Push(struct anode** headRef, sockaddr_in addr, char *name);
 void Push(struct anode** headRef, char* ip, short port, char *name);
