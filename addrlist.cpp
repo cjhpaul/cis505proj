@@ -83,6 +83,25 @@ int CountList(struct anode* head){
 	return count;
 }
 
+void DeleteNode(struct anode** headRef, char* name) {
+	struct anode *currP, *prevP;
+	prevP = NULL;
+	for (currP = *headRef;
+		currP != NULL;
+		prevP = currP, currP = currP->next) {
+		if (strcmp(currP->name, name) == 0) {
+			if (prevP == NULL) {
+				*headRef = currP->next;
+			} else {
+				prevP->next = currP->next;
+			}
+			free(currP);
+			return;
+		}
+	}
+	return;
+}
+
 void addrtest() {
 	struct ifaddrs *ifap, *ifa;
     struct sockaddr_in *sa;

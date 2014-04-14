@@ -22,7 +22,7 @@ int main(int argc, char **argv)
 	}
 	//sequencer
 	if (argc == 2){
-		result = DoSequencerWork(argv[1]);
+		result = DoSequencerWork(argv[1], -1);
 		printf("result: %d\n", result);
 	}
 	//client

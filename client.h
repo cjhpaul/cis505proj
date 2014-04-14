@@ -5,5 +5,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 int DoClientWork(char* name, char* ipport);
-void ClientController(char*);
+void ClientController(char*, sockaddr_in);
 void UpdateClientList(char*);
+
+int LeaderElection(char* name);

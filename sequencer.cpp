@@ -5,17 +5,22 @@
 #include "getip.h"
 #include <ifaddrs.h>
 #include <pthread.h>
-#define PORT 12346 //hardcoded for now
+// #define PORT 12346 //hardcoded for now
 
 int g_fd;
 void *ReceiveThreadWorker (void *);
 char g_leaderinfo[MAXNAME + 20]; //keeps leader/sequencer info
 
-int DoSequencerWork(char* name){
+int DoSequencerWork(char* name, int p){
+	int PORT;
 	struct sockaddr_in myaddr;
 	if ((g_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		perror("cannot create socket\n");
 		return 0;
+	}
+	PORT = p;
+	if (p == -1) {
+		PORT = 12346;
 	}
 
 	memset((char *)&myaddr, 0, sizeof(myaddr));
@@ -46,6 +51,12 @@ int DoSequencerWork(char* name){
 	//send_thread
 	char msg[MSGSIZE];
 	char send_data[BUFSIZE];
+
+	//if this is a new leader, multicast to claim "I'm a leader!"
+	if (p != -1) { //todo
+		sprintf(send_data, "upl:%s", name);
+		MultiCast(send_data);
+	}
 	while(fgets(msg, sizeof(msg), stdin) != NULL){
 		sprintf(send_data, "msg:%s:: %s", name, msg);
 		MultiCast(send_data);

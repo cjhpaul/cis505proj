@@ -20,5 +20,6 @@ void GetNameByAddr(struct anode* head, sockaddr_in addr, char* name);
 void DeleteList(struct anode** headRef);
 void ShowList(struct anode* head, char* buffer);
 int CountList(struct anode* head);
+void DeleteNode(struct anode** headRef, char* name);
 
 void addrtest();

@@ -22,13 +22,16 @@ When client enters the chat and wants to register,
 S->A upd:name1:ip1:port1:name2:ip2:port2:...:end
 Each client updates their client list
 
+Update leader info
+S->A udl:name
+
 Requrements
 -User can start a new chat group
 -User can join an existing chat group (via sequencer)
 -User can join by connecting to any member of a the group they want to join
 -Sequencer/Client can leave the group (is-alive mechanism)
 -Leader election & Leader switch from client
--Leader/client have an up to date list of those currently in th chat
+-Leader/client have an up to date list of those currently in the chat
 -Use get messages via multicast by sequencer
 -fully ordered multicast protocol (based on a sequencer) via message queue
 -Deal with lost/duplicate messages (both of message delivery and of other clients)

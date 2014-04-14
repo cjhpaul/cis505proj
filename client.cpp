@@ -3,12 +3,14 @@
 #include "addrlist.h"
 #include "client.h"
 #include "limits.h"
+#include "sequencer.h"
 
 int g_fdclient;
 char g_name[MAXNAME];
 char g_server[20];
-char g_port[10];
+int g_port;
 struct sockaddr_in g_remaddrclient;
+int isLeaderChanged;
 
 void *ReceiveThreadWorkerClient (void *);
 
@@ -18,7 +20,9 @@ int DoClientWork(char* name, char* port){
 	//setup for global variables
 	strcpy(g_name, name);
 	strcpy(g_server, server);
-	strcpy(g_port, port);
+	g_port = atoi(port);
+
+	isLeaderChanged = 0;
 
 	struct sockaddr_in myaddr, g_remaddrclient;
 	socklen_t slen = sizeof(g_remaddrclient);
@@ -56,6 +60,32 @@ int DoClientWork(char* name, char* port){
 	sendto(g_fdclient, send_data, strlen(send_data), 0, (struct sockaddr *)&g_remaddrclient, slen);
 
 	while(fgets(msg_buffer, sizeof(msg_buffer), stdin) != NULL){
+		//update the leader/sequencer info
+		if (isLeaderChanged) {
+			isLeaderChanged = 0;
+			memset((char *) &g_remaddrclient, 0, sizeof(g_remaddrclient));
+			g_remaddrclient.sin_family = AF_INET;
+			g_remaddrclient.sin_port = htons(ntohs(g_port));
+			if (inet_aton(g_server, &g_remaddrclient.sin_addr)==0) {
+				fprintf(stderr, "inet_aton() failed\n");
+				exit(1);
+			}
+		}
+		//***debug
+		if (strcmp(msg_buffer, "leader\n") == 0) {
+			int myport;
+			if ((myport = LeaderElection(name)) != 0) {
+				printf("I'm a new leader!\n");
+				pthread_cancel(pid_receive_thread);
+				pthread_join(pid_receive_thread, NULL);
+				close(g_fdclient);
+				DeleteNode(&g_alist, name);
+				DoSequencerWork(name, myport);
+			}
+			continue;
+		}
+		//***end of debug
+
 		//out-protocol: msg:MessageToSendToSequencer
 		strcpy(send_data, "msg:");
 		strcat(send_data, msg_buffer);
@@ -72,24 +102,25 @@ int DoClientWork(char* name, char* port){
 
 void* ReceiveThreadWorkerClient (void *p){
 	int recvlen;
-	socklen_t slen = sizeof(g_remaddrclient);
+	struct sockaddr_in recvaddr;
+	socklen_t slen = sizeof(recvaddr);
 	char recv_data[BUFSIZE];
 	while(1){
 		//clear buffer
 		memset(&recv_data[0], 0, sizeof(recv_data));
 		//get a msg
-		recvlen = recvfrom(g_fdclient, recv_data, BUFSIZE, 0, (struct sockaddr *)&g_remaddrclient, &slen);
+		recvlen = recvfrom(g_fdclient, recv_data, BUFSIZE, 0, (struct sockaddr *)&recvaddr, &slen);
 		if (recvlen >= 0) {
 			recv_data[recvlen] = 0;
 			//parse & do operation with msg
-			ClientController(recv_data);
+			ClientController(recv_data, recvaddr);
 		}
 	}
 	pthread_exit (NULL);
 }
 
 //controller for received msg
-void ClientController(char* recv_data){
+void ClientController(char* recv_data, sockaddr_in recvaddr){
 	char *cmd;
 	cmd = strsep(&recv_data, ":");
 	//response to register req, it should get user name
@@ -101,7 +132,7 @@ void ClientController(char* recv_data){
 		strcpy(myip, cmd);
 		cmd = strsep(&recv_data, ":");
 		strcpy(myport, cmd);
-		printf("%s joining a new chat on %s:%s, listening on %s:%s\n", g_name, g_server, g_port, myip, myport);
+		printf("%s joining a new chat on %s:%d, listening on %s:%s\n", g_name, g_server, g_port, myip, myport);
 		printf("Succeeded, current users:\n");
 		printf("%s", recv_data);
 	}
@@ -111,6 +142,12 @@ void ClientController(char* recv_data){
 	}
 	else if (strcmp(cmd, "upd") == 0) {
 		UpdateClientList(recv_data);
+	}
+	else if (strcmp(cmd, "upl") == 0) {
+		strcpy(g_name, recv_data);
+		isLeaderChanged = 1;
+		strcpy(g_server, inet_ntoa(recvaddr.sin_addr));
+		g_port = recvaddr.sin_port;
 	}
 	return;
 }
@@ -136,4 +173,17 @@ void UpdateClientList(char* recv_data){
 		strcpy(port, token);
 		Push(&g_alist, ip, ntohs(atoi(port)), name);
 	}
+}
+
+//leader is whoever last joined in the chat
+//return port number of the new leader
+int LeaderElection(char* name) {
+	struct anode* current = g_alist;
+	while (current->next != NULL) {
+		current = current->next;
+	}
+	if (strcmp(name, current->name) == 0) {
+		return htons(current->addr.sin_port);
+	}
+	return 0;
 }

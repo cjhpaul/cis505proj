@@ -4,7 +4,7 @@
 #include <netdb.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-int DoSequencerWork(char*);
+int DoSequencerWork(char* name, int p);
 void SequencerController(char*, sockaddr_in);
 void MultiCast(char*);
 void ShowListWithLeader(char*);
