@@ -6,9 +6,12 @@
 #include <ifaddrs.h>
 #include <pthread.h>
 // #define PORT 12346 //hardcoded for now
+#define HEARTBEAT_TIME 3
+#define AUDIT_TIME 12
 
 int g_fd;
 void *ReceiveThreadWorker (void *);
+void *KeepAliveThread (void *);
 char g_leaderinfo[MAXNAME + 20]; //keeps leader/sequencer info
 
 int DoSequencerWork(char* name, int p){
@@ -48,6 +51,10 @@ int DoSequencerWork(char* name, int p){
 	pthread_t pid_receive_thread;
 	pthread_create (&pid_receive_thread, NULL, &ReceiveThreadWorker, NULL);
 
+	// keep_alive thread
+	pthread_t keep_alive_thread;
+	pthread_create (&keep_alive_thread, NULL, &KeepAliveThread, NULL);
+
 	//send_thread
 	char msg[MSGSIZE];
 	char send_data[BUFSIZE];
@@ -63,6 +70,10 @@ int DoSequencerWork(char* name, int p){
     }
     pthread_cancel(pid_receive_thread);
     pthread_join(pid_receive_thread, NULL);
+
+	pthread_cancel(keep_alive_thread);
+    pthread_join(keep_alive_thread, NULL);
+
 	close(g_fd);
 	return 0;
 }
@@ -84,6 +95,16 @@ void* ReceiveThreadWorker (void *p){
 		}
 	}
 	pthread_exit (NULL);
+}
+
+void* KeepAliveThread (void *p){
+	char buffer[BUFSIZE];
+	while (1){
+		sprintf(buffer, "kpa:KEEP_ALIVE");
+		MultiCast(buffer);
+		sleep(HEARTBEAT_TIME);
+	}
+	pthread_exit(NULL);
 }
 
 //controller for received msg
@@ -130,7 +151,14 @@ void SequencerController(char* recv_data, sockaddr_in addr){
 		sprintf(send_data, "msg:%s:: %s", name, recv_data);
 		//multicast that msg to everyone that is connected
 		MultiCast(send_data);
-	} else {
+	}
+	else if (strcmp(cmd, "kpa") == 0){
+		printf("***debug2 kpa received\n");
+		// int index = GetIndexByAddr(g_alist, addr);
+		// flags[index] = 1;
+		// printf("%s", recv_data);
+	}
+	else {
 		printf("nothing\n");
 	}
 	return;

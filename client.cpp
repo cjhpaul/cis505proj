@@ -149,6 +149,17 @@ void ClientController(char* recv_data, sockaddr_in recvaddr){
 		strcpy(g_server, inet_ntoa(recvaddr.sin_addr));
 		g_port = recvaddr.sin_port;
 	}
+	else if (strcmp(cmd, "kpa") == 0) {
+		if (strcmp(recv_data, "KEEP_ALIVE") == 0){
+			char alive[20];
+			strcpy(alive, "kpa:ALIVE");
+			socklen_t slen = sizeof(recvaddr);
+			if (sendto(g_fdclient, alive, strlen(alive), 0, (struct sockaddr *)&recvaddr, slen)==-1) {
+				perror("sendto");
+				exit(1);
+			}
+		}
+	}
 	return;
 }
 
