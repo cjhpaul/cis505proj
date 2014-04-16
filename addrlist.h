@@ -18,6 +18,7 @@ extern struct anode* g_alist; //keeps all clients info
 void Push(struct anode** headRef, sockaddr_in addr, char *name);
 void Push(struct anode** headRef, char* ip, short port, char *name);
 void GetNameByAddr(struct anode* head, sockaddr_in addr, char* name);
+void GetAddrByName(struct anode* head, sockaddr_in addr, char* name);
 void DeleteList(struct anode** headRef);
 void ShowList(struct anode* head, char* buffer);
 int CountList(struct anode* head);

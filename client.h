@@ -8,4 +8,4 @@ int DoClientWork(char* name, char* ipport);
 void ClientController(char*, sockaddr_in);
 void UpdateClientList(char*);
 
-int LeaderElection(char* name);
+int LeaderElection(char* name, char* leaderName);

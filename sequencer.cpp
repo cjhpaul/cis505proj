@@ -20,7 +20,7 @@ int DoSequencerWork(char* name, int p){
 		return 0;
 	}
 	PORT = p;
-	if (p == -1) {
+	if (p == -1) { //todo: clean up stdout output
 		PORT = 12346;
 	}
 
@@ -48,6 +48,10 @@ int DoSequencerWork(char* name, int p){
 	if (p >= 0) {
 		//new leader has arrived. Time for all clients to update their client list
 		char clist[BUFSIZE];
+		
+		strcpy(clist, "test\n");
+		MultiCast(clist);
+
 		GetUpdateList(clist);
 		MultiCast(clist);
 	}
@@ -65,7 +69,7 @@ int DoSequencerWork(char* name, int p){
 	char send_data[BUFSIZE];
 
 	//if this is a new leader, multicast to claim "I'm a leader!"
-	if (p != -1) { //todo
+	if (p >= 0) { //todo
 		sprintf(send_data, "upl:%s", name);
 		MultiCast(send_data);
 	}

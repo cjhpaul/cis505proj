@@ -42,6 +42,19 @@ void GetNameByAddr(struct anode* head, sockaddr_in addr, char* name){
 		if (addr.sin_port == current->addr.sin_port &&
 			strcmp(addrip, curip) == 0) {
 			strcpy(name, current->name);
+			return;
+		}
+		current = current->next;
+	}
+	return;
+}
+
+void GetAddrByName(struct anode* head, sockaddr_in addr, char* name){
+	struct anode* current = head;
+	while (current != NULL) {
+		if (strcmp(current->name, name) == 0) {
+			memcpy(&addr, &(current->addr), sizeof(addr));
+			return;
 		}
 		current = current->next;
 	}

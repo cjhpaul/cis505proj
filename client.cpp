@@ -5,19 +5,21 @@
 #include "limits.h"
 #include "sequencer.h"
 
+//todo: graceful exit with EOD
 int g_fdclient;
 char g_name[MAXNAME];
 char g_server[20];
 int g_port;
-struct sockaddr_in g_remaddrclient;
+struct sockaddr_in g_remaddrclient, g_myaddr;
 int isLeaderChanged;
 int livecountForSequencer;
 
 pthread_t g_pid_receive_thread_client;
 pthread_t g_keep_alive_thread_client;
+pthread_t g_fgets_thread_client;
 
 void *ReceiveThreadWorkerClient (void *);
-void *KeepAliveThreadClient (void *);
+void *FgetsThreadClient (void *);
 
 int DoClientWork(char* name, char* port){
 	char *server;
@@ -30,16 +32,15 @@ int DoClientWork(char* name, char* port){
 	isLeaderChanged = 0;
 	livecountForSequencer = 0;
 
-	struct sockaddr_in myaddr, g_remaddrclient;
 	socklen_t slen = sizeof(g_remaddrclient);
 	if ((g_fdclient=socket(AF_INET, SOCK_DGRAM, 0))==-1)
 		printf("socket created\n");
 
-	memset((char *)&myaddr, 0, sizeof(myaddr));
-	myaddr.sin_family = AF_INET;
-	myaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	myaddr.sin_port = htons(0);
-	if (bind(g_fdclient, (struct sockaddr *)&myaddr, sizeof(myaddr)) < 0) {
+	memset((char *)&g_myaddr, 0, sizeof(g_myaddr));
+	g_myaddr.sin_family = AF_INET;
+	g_myaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	g_myaddr.sin_port = htons(0);
+	if (bind(g_fdclient, (struct sockaddr *)&g_myaddr, sizeof(g_myaddr)) < 0) {
 		perror("bind failed");
 		return 0;
 	}
@@ -54,12 +55,11 @@ int DoClientWork(char* name, char* port){
 	//receive_thread
 	pthread_create (&g_pid_receive_thread_client, NULL, &ReceiveThreadWorkerClient, NULL);
 
-	// keep_alive thread
-	pthread_create (&g_keep_alive_thread_client, NULL, &KeepAliveThreadClient, NULL);
+	//fgets thread
+	pthread_create (&g_fgets_thread_client, NULL, &FgetsThreadClient, NULL);
 
 	//send_thread
 	char send_data[BUFSIZE];
-	char msg_buffer[MSGSIZE];
 	
 	//register client info with sequencer
 	//once sequencer gets reg msg, it will send user list
@@ -67,49 +67,35 @@ int DoClientWork(char* name, char* port){
 	sprintf(send_data, "reg:%s", name);
 	sendto(g_fdclient, send_data, strlen(send_data), 0, (struct sockaddr *)&g_remaddrclient, slen);
 
-	//todo: make a fgets thread, bring KeepAlive to main thread
-	while(fgets(msg_buffer, sizeof(msg_buffer), stdin) != NULL){
-		//update the leader/sequencer info
-		if (isLeaderChanged) {
-			isLeaderChanged = 0;
-			memset((char *) &g_remaddrclient, 0, sizeof(g_remaddrclient));
-			g_remaddrclient.sin_family = AF_INET;
-			g_remaddrclient.sin_port = htons(ntohs(g_port));
-			if (inet_aton(g_server, &g_remaddrclient.sin_addr)==0) {
-				fprintf(stderr, "inet_aton() failed\n");
-				exit(1);
-			}
-		}
-		//***debug
-		if (strcmp(msg_buffer, "leader\n") == 0) {
+	while (1){
+		livecountForSequencer++;
+		if (livecountForSequencer >= AUDIT_TIME) {
 			int myport;
-			if ((myport = LeaderElection(name)) != 0) {
-				printf("I'm a new leader!\n");
-				pthread_cancel(g_pid_receive_thread_client);
-				pthread_join(g_pid_receive_thread_client, NULL);
-				pthread_cancel(g_keep_alive_thread_client);
-    			pthread_join(g_keep_alive_thread_client, NULL);
+			char leaderName[MAXNAME];
+			//todo: get the leader name
+			printf("NOTICE sequencer left the chat or crashed\n");
+			if ((myport = LeaderElection(name, leaderName)) != 0) {
+				pthread_cancel(g_pid_receive_thread_client);				
+				pthread_cancel(g_fgets_thread_client);
 				close(g_fdclient);
 				DeleteNode(&g_alist, name);
 				DoSequencerWork(name, myport);
+				pthread_join(g_pid_receive_thread_client, NULL);
+				pthread_join(g_fgets_thread_client, NULL);
+				return 0;
 			}
-			continue;
+			else { //im a client
+				GetAddrByName(g_alist, g_remaddrclient, leaderName);
+			}
 		}
-		//***end of debug
-
-		//out-protocol: msg:MessageToSendToSequencer
-		strcpy(send_data, "msg:");
-		strcat(send_data, msg_buffer);
-		if (sendto(g_fdclient, send_data, strlen(send_data), 0, (struct sockaddr *)&g_remaddrclient, slen)==-1) {
-			perror("sendto");
-			exit(1);
-		}
+		sleep(HEARTBEAT_TIME);
 	}
+
 	pthread_cancel(g_pid_receive_thread_client);
 	pthread_join(g_pid_receive_thread_client, NULL);
 
-	pthread_cancel(g_keep_alive_thread_client);
-    pthread_join(g_keep_alive_thread_client, NULL);
+    pthread_cancel(g_fgets_thread_client);
+    pthread_join(g_fgets_thread_client, NULL);
 
 	close(g_fdclient);
 	return 0;
@@ -134,20 +120,32 @@ void* ReceiveThreadWorkerClient (void *p){
 	pthread_exit (NULL);
 }
 
-void* KeepAliveThreadClient (void *p){
-	char buffer[BUFSIZE];
-	while (1){
-		livecountForSequencer++;
-		if (livecountForSequencer >= AUDIT_TIME) {
-			printf("***debug: leader is dead: %s\n", g_name);
-			//leader is dead, let's go for leader election
-			//broadcast
-			// sprintf(buffer, "msg:NOTICE %s left the chat or crashed\n", deleted_name);			
-			// MultiCast(buffer);
+void *FgetsThreadClient (void *) {
+	//send_thread
+	char send_data[BUFSIZE];
+	char msg_buffer[MSGSIZE];
+
+	while(fgets(msg_buffer, sizeof(msg_buffer), stdin) != NULL){
+		//update the leader/sequencer info
+		if (isLeaderChanged) {
+			isLeaderChanged = 0;
+			memset((char *) &g_remaddrclient, 0, sizeof(g_remaddrclient));
+			g_remaddrclient.sin_family = AF_INET;
+			g_remaddrclient.sin_port = htons(ntohs(g_port));
+			if (inet_aton(g_server, &g_remaddrclient.sin_addr)==0) {
+				fprintf(stderr, "inet_aton() failed\n");
+				exit(1);
+			}
 		}
-		sleep(HEARTBEAT_TIME);
+		//out-protocol: msg:MessageToSendToSequencer
+		strcpy(send_data, "msg:");
+		strcat(send_data, msg_buffer);
+		if (sendto(g_fdclient, send_data, strlen(send_data), 0, (struct sockaddr *)&g_remaddrclient, sizeof(g_remaddrclient))==-1) {
+			perror("sendto");
+			exit(1);
+		}
 	}
-	pthread_exit(NULL);
+	pthread_exit(NULL);	
 }
 
 //controller for received msg
@@ -220,11 +218,13 @@ void UpdateClientList(char* recv_data){
 
 //leader is whoever last joined in the chat
 //return port number of the new leader
-int LeaderElection(char* name) {
+//todo: select alphabetically ordered leader
+int LeaderElection(char* name, char* leaderName) {
 	struct anode* current = g_alist;
 	while (current->next != NULL) {
 		current = current->next;
 	}
+	strcpy(leaderName, current->name);
 	if (strcmp(name, current->name) == 0) {
 		return htons(current->addr.sin_port);
 	}
