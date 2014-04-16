@@ -11,8 +11,13 @@ char g_server[20];
 int g_port;
 struct sockaddr_in g_remaddrclient;
 int isLeaderChanged;
+int livecountForSequencer;
+
+pthread_t g_pid_receive_thread_client;
+pthread_t g_keep_alive_thread_client;
 
 void *ReceiveThreadWorkerClient (void *);
+void *KeepAliveThreadClient (void *);
 
 int DoClientWork(char* name, char* port){
 	char *server;
@@ -23,6 +28,7 @@ int DoClientWork(char* name, char* port){
 	g_port = atoi(port);
 
 	isLeaderChanged = 0;
+	livecountForSequencer = 0;
 
 	struct sockaddr_in myaddr, g_remaddrclient;
 	socklen_t slen = sizeof(g_remaddrclient);
@@ -46,8 +52,10 @@ int DoClientWork(char* name, char* port){
 	}
 
 	//receive_thread
-	pthread_t pid_receive_thread;
-	pthread_create (&pid_receive_thread, NULL, &ReceiveThreadWorkerClient, NULL);
+	pthread_create (&g_pid_receive_thread_client, NULL, &ReceiveThreadWorkerClient, NULL);
+
+	// keep_alive thread
+	pthread_create (&g_keep_alive_thread_client, NULL, &KeepAliveThreadClient, NULL);
 
 	//send_thread
 	char send_data[BUFSIZE];
@@ -59,6 +67,7 @@ int DoClientWork(char* name, char* port){
 	sprintf(send_data, "reg:%s", name);
 	sendto(g_fdclient, send_data, strlen(send_data), 0, (struct sockaddr *)&g_remaddrclient, slen);
 
+	//todo: make a fgets thread, bring KeepAlive to main thread
 	while(fgets(msg_buffer, sizeof(msg_buffer), stdin) != NULL){
 		//update the leader/sequencer info
 		if (isLeaderChanged) {
@@ -76,8 +85,10 @@ int DoClientWork(char* name, char* port){
 			int myport;
 			if ((myport = LeaderElection(name)) != 0) {
 				printf("I'm a new leader!\n");
-				pthread_cancel(pid_receive_thread);
-				pthread_join(pid_receive_thread, NULL);
+				pthread_cancel(g_pid_receive_thread_client);
+				pthread_join(g_pid_receive_thread_client, NULL);
+				pthread_cancel(g_keep_alive_thread_client);
+    			pthread_join(g_keep_alive_thread_client, NULL);
 				close(g_fdclient);
 				DeleteNode(&g_alist, name);
 				DoSequencerWork(name, myport);
@@ -94,8 +105,12 @@ int DoClientWork(char* name, char* port){
 			exit(1);
 		}
 	}
-	pthread_cancel(pid_receive_thread);
-	pthread_join(pid_receive_thread, NULL);
+	pthread_cancel(g_pid_receive_thread_client);
+	pthread_join(g_pid_receive_thread_client, NULL);
+
+	pthread_cancel(g_keep_alive_thread_client);
+    pthread_join(g_keep_alive_thread_client, NULL);
+
 	close(g_fdclient);
 	return 0;
 }
@@ -117,6 +132,22 @@ void* ReceiveThreadWorkerClient (void *p){
 		}
 	}
 	pthread_exit (NULL);
+}
+
+void* KeepAliveThreadClient (void *p){
+	char buffer[BUFSIZE];
+	while (1){
+		livecountForSequencer++;
+		if (livecountForSequencer >= AUDIT_TIME) {
+			printf("***debug: leader is dead: %s\n", g_name);
+			//leader is dead, let's go for leader election
+			//broadcast
+			// sprintf(buffer, "msg:NOTICE %s left the chat or crashed\n", deleted_name);			
+			// MultiCast(buffer);
+		}
+		sleep(HEARTBEAT_TIME);
+	}
+	pthread_exit(NULL);
 }
 
 //controller for received msg
@@ -158,6 +189,7 @@ void ClientController(char* recv_data, sockaddr_in recvaddr){
 				perror("sendto");
 				exit(1);
 			}
+			livecountForSequencer = 0;
 		}
 	}
 	return;

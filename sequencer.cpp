@@ -6,8 +6,6 @@
 #include <ifaddrs.h>
 #include <pthread.h>
 // #define PORT 12346 //hardcoded for now
-#define HEARTBEAT_TIME 3
-#define AUDIT_TIME 12
 
 int g_fd;
 void *ReceiveThreadWorker (void *);
@@ -46,6 +44,13 @@ int DoSequencerWork(char* name, int p){
 	printf("%s", userlist);
 	
 	printf("Waiting for others to join...\n");
+
+	if (p >= 0) {
+		//new leader has arrived. Time for all clients to update their client list
+		char clist[BUFSIZE];
+		GetUpdateList(clist);
+		MultiCast(clist);
+	}
 
 	//receive_thread
 	pthread_t pid_receive_thread;
@@ -99,9 +104,18 @@ void* ReceiveThreadWorker (void *p){
 
 void* KeepAliveThread (void *p){
 	char buffer[BUFSIZE];
+	char deleted_name[MAXNAME];
 	while (1){
+		IncrementLiveCount(g_alist);
 		sprintf(buffer, "kpa:KEEP_ALIVE");
 		MultiCast(buffer);
+		if (DeleteNodeByLiveCount(&g_alist, AUDIT_TIME, deleted_name)) {
+			sprintf(buffer, "msg:NOTICE %s left the chat or crashed\n", deleted_name);
+			MultiCast(buffer);
+			//someone just left the chat, time to update the client list
+			GetUpdateList(buffer);
+			MultiCast(buffer);
+		}
 		sleep(HEARTBEAT_TIME);
 	}
 	pthread_exit(NULL);
@@ -153,10 +167,9 @@ void SequencerController(char* recv_data, sockaddr_in addr){
 		MultiCast(send_data);
 	}
 	else if (strcmp(cmd, "kpa") == 0){
-		printf("***debug2 kpa received\n");
-		// int index = GetIndexByAddr(g_alist, addr);
-		// flags[index] = 1;
-		// printf("%s", recv_data);
+		char name[MAXNAME];
+		GetNameByAddr(g_alist, addr, name);
+		ZeroizeLiveCount(g_alist, name);
 	}
 	else {
 		printf("nothing\n");

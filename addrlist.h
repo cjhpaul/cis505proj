@@ -8,6 +8,7 @@
 struct anode{
 	sockaddr_in addr;
 	char name[MAXNAME];
+	int livecount;
 	struct anode *next;
 };
 
@@ -20,6 +21,9 @@ void GetNameByAddr(struct anode* head, sockaddr_in addr, char* name);
 void DeleteList(struct anode** headRef);
 void ShowList(struct anode* head, char* buffer);
 int CountList(struct anode* head);
+void IncrementLiveCount(struct anode* head);
+void ZeroizeLiveCount(struct anode* head, char* name);
 void DeleteNode(struct anode** headRef, char* name);
+int DeleteNodeByLiveCount(struct anode** headRef, int livecountlimit, char* name);
 
 void addrtest();

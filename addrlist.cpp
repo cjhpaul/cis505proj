@@ -10,6 +10,7 @@ void Push(struct anode** headRef, sockaddr_in addr, char *name) {
 	struct anode* newNode = new anode;
 	memcpy(&(newNode->addr), &addr, sizeof(newNode->addr));
 	strcpy(newNode->name, name);
+	newNode->livecount = 0;
 	newNode->next = *headRef;
 	*headRef = newNode;
 	return;
@@ -26,6 +27,7 @@ void Push(struct anode** headRef, char* ip, short port, char *name) {
 	testAddr.sin_port = htons(port);
 	memcpy(&(newNode->addr), &testAddr, sizeof(newNode->addr));
 	strcpy(newNode->name, name);
+	newNode->livecount = 0;
 	newNode->next = *headRef;
 	*headRef = newNode;
 	return;	
@@ -73,6 +75,27 @@ void ShowList(struct anode* head, char* buffer){
 	return;
 }
 
+void IncrementLiveCount(struct anode* head){
+	struct anode* current = head;
+	while (current != NULL) {
+		current->livecount++;
+		current = current->next;
+	}
+	return;
+}
+
+void ZeroizeLiveCount(struct anode* head, char* name) {
+	struct anode* current = head;
+	while (current != NULL) {
+		if (strcmp(name, current->name) == 0) {
+			current->livecount = 0;
+			return;
+		}
+		current = current->next;
+	}
+	return;	
+}
+
 int CountList(struct anode* head){
 	struct anode* current = head;
 	int count = 0;
@@ -81,6 +104,26 @@ int CountList(struct anode* head){
 		current = current->next;
 	}
 	return count;
+}
+
+int DeleteNodeByLiveCount(struct anode** headRef, int livecountlimit, char* name) {
+	struct anode *currP, *prevP;
+	prevP = NULL;
+	for (currP = *headRef;
+		currP != NULL;
+		prevP = currP, currP = currP->next) {
+		if (currP->livecount >= livecountlimit) {
+			strcpy(name, currP->name);
+			if (prevP == NULL) {
+				*headRef = currP->next;
+			} else {
+				prevP->next = currP->next;
+			}
+			free(currP);
+			return 1;
+		}
+	}
+	return 0;
 }
 
 void DeleteNode(struct anode** headRef, char* name) {
