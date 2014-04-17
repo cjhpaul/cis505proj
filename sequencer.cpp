@@ -91,7 +91,7 @@ void* ReceiveThreadWorker (void *p){
 	int recvlen;
 	struct sockaddr_in addr;
 	socklen_t slen = sizeof(addr);
-	char recv_data[BUFSIZE]; //todo: max length should be adjusted
+	char recv_data[BUFSIZE];
 	while(1){
 		//clear buffer
 		memset(&recv_data[0], 0, sizeof(recv_data));
@@ -125,7 +125,7 @@ void* KeepAliveThread (void *p){
 	pthread_exit(NULL);
 }
 
-//controller for received msg
+//controller for sequencer
 void SequencerController(char* recv_data, sockaddr_in addr){
 	char *cmd;
 	cmd = strsep(&recv_data, ":");
@@ -181,6 +181,7 @@ void SequencerController(char* recv_data, sockaddr_in addr){
 	return;
 }
 
+//multicast to those in client list
 void MultiCast(char* msg){
 	struct anode* current = g_alist;
 	//multicasting for all the registered clients
@@ -200,6 +201,8 @@ void MultiCast(char* msg){
 		printf("%s", msg);
 	return;
 }
+
+//get client list
 void ShowListWithLeader(char* buffer){	
 	char alistbuffer[BUFSIZE];
 	ShowList(g_alist, alistbuffer);
@@ -207,6 +210,7 @@ void ShowListWithLeader(char* buffer){
 	return;	
 }
 
+//get upd message for sequencer
 void GetUpdateList(char* buffer){
 	char line[MAXNAME + 20];
 	strcpy(buffer, "upd:");

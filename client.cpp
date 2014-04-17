@@ -5,13 +5,13 @@
 #include "limits.h"
 #include "sequencer.h"
 
-//todo: graceful exit with EOD
 int g_fdclient;
 char g_name[MAXNAME];
 char g_server[20];
 int g_port;
 struct sockaddr_in g_remaddrclient, g_myaddr;
 int isLeaderChanged;
+int isEOF;
 int livecountForSequencer;
 
 pthread_t g_pid_receive_thread_client;
@@ -29,6 +29,7 @@ int DoClientWork(char* name, char* port){
 	strcpy(g_server, server);
 	g_port = atoi(port);
 
+	isEOF = 0;
 	isLeaderChanged = 0;
 	livecountForSequencer = 0;
 
@@ -67,7 +68,7 @@ int DoClientWork(char* name, char* port){
 	sprintf(send_data, "reg:%s", name);
 	sendto(g_fdclient, send_data, strlen(send_data), 0, (struct sockaddr *)&g_remaddrclient, slen);
 
-	while (1){
+	while (!isEOF){
 		livecountForSequencer++;
 		if (livecountForSequencer >= AUDIT_TIME) {
 			int myport;
@@ -145,10 +146,13 @@ void *FgetsThreadClient (void *) {
 			exit(1);
 		}
 	}
-	pthread_exit(NULL);	
+	isEOF = 1;
+	pthread_cancel(g_pid_receive_thread_client);
+	pthread_join(g_pid_receive_thread_client, NULL);
+	pthread_exit(NULL);
 }
 
-//controller for received msg
+//controller for client
 void ClientController(char* recv_data, sockaddr_in recvaddr){
 	char *cmd;
 	cmd = strsep(&recv_data, ":");
@@ -193,6 +197,7 @@ void ClientController(char* recv_data, sockaddr_in recvaddr){
 	return;
 }
 
+// update client list using upd message
 // name:ip:port:...:end
 void UpdateClientList(char* recv_data){
 	char *token;
