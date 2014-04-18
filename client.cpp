@@ -43,17 +43,17 @@ int DoClientWork(char* name, char* port){
 		exit(1);
 	}
 
+	//send_thread
+	char send_data[BUFSIZE];
+	
 	//fork thread
 	pthread_create (&g_pid_receive_thread_client, NULL, &ReceiveThreadWorkerClient, NULL);
 	pthread_create (&g_fgets_thread_client, NULL, &FgetsThreadClient, NULL);
 
-	//send_thread
-	char send_data[BUFSIZE];
-	
 	//register client info with sequencer
-	//once sequencer gets reg msg, it will send user list
-	//out-protocol: reg:clientname
-	sprintf(send_data, "reg:%s", name);
+	//once sequencer gets rec msg, it will send user list
+	//out-protocol: rec:clientname
+	sprintf(send_data, "rec:%s", name);
 	sendto(g_fdclient, send_data, strlen(send_data), 0, (struct sockaddr *)&g_remaddrclient, slen);
 
 	while (!isEOF){
@@ -61,7 +61,7 @@ int DoClientWork(char* name, char* port){
 		if (livecountForSequencer >= AUDIT_TIME) {
 			int myport;
 			char leaderName[MAXNAME];
-			if ((myport = LeaderElection(name, leaderName)) != 0) {
+			if ((myport = LeaderElection(name, leaderName)) > 0) {
 				close(g_fdclient);
 				pthread_cancel(g_pid_receive_thread_client);				
 				pthread_cancel(g_fgets_thread_client);
@@ -71,7 +71,7 @@ int DoClientWork(char* name, char* port){
 				pthread_join(g_fgets_thread_client, NULL);
 				return 0;
 			}
-			else { //im a client
+			else if (myport == 0) { //im a client
 				//waiting for a response from a new leader
 				if (livecountForSequencer >= AUDIT_TIME + AUDIT_TIME) {
 					//enough waiting, i'll remove the new leader
@@ -81,6 +81,10 @@ int DoClientWork(char* name, char* port){
 					DeleteNode(&g_alist, leaderName);
 				}
 				GetAddrByName(g_alist, g_remaddrclient, leaderName);
+			}
+			else if (myport == -1) {
+				fprintf(stderr, "timeout\n");
+				break;
 			}
 		}
 		sleep(HEARTBEAT_TIME);
@@ -123,7 +127,7 @@ void *FgetsThreadClient (void *) {
 			isLeaderChanged = 0;
 			memset((char *) &g_remaddrclient, 0, sizeof(g_remaddrclient));
 			g_remaddrclient.sin_family = AF_INET;
-			g_remaddrclient.sin_port = htons(ntohs(g_port));
+			g_remaddrclient.sin_port = htons(g_port);
 			if (inet_aton(g_server, &g_remaddrclient.sin_addr)==0) {
 				fprintf(stderr, "inet_aton() failed\n");
 				exit(1);

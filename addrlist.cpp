@@ -80,7 +80,7 @@ void ShowList(struct anode* head, char* buffer){
 		sprintf(line, "%s %s:%d\n", 
 			current->name, 
 			inet_ntoa(current->addr.sin_addr), 
-			current->addr.sin_port);
+			ntohs(current->addr.sin_port));
 		strcat(buffer, line);
 		current = current->next;
 	}
