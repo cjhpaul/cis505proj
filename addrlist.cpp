@@ -11,6 +11,7 @@ void Push(struct anode** headRef, sockaddr_in addr, char *name) {
 	memcpy(&(newNode->addr), &addr, sizeof(newNode->addr));
 	strcpy(newNode->name, name);
 	newNode->livecount = 0;
+	newNode->seq = 0;
 	newNode->next = *headRef;
 	*headRef = newNode;
 	return;
@@ -28,6 +29,7 @@ void Push(struct anode** headRef, char* ip, short port, char *name) {
 	memcpy(&(newNode->addr), &testAddr, sizeof(newNode->addr));
 	strcpy(newNode->name, name);
 	newNode->livecount = 0;
+	newNode->seq = 0;
 	newNode->next = *headRef;
 	*headRef = newNode;
 	return;	
@@ -156,6 +158,23 @@ void DeleteNode(struct anode** headRef, char* name) {
 		}
 	}
 	return;
+}
+
+int GetNextSequenceNumberByAddr(struct anode* head, sockaddr_in addr) {
+	int nextSeq = -1;
+	struct anode* current = head;
+	char addrip[20], curip[20];
+	strcpy(addrip, inet_ntoa(addr.sin_addr));
+	while (current != NULL) {
+		strcpy(curip, inet_ntoa(current->addr.sin_addr));
+		if (addr.sin_port == current->addr.sin_port &&
+			strcmp(addrip, curip) == 0) {
+			nextSeq = ++(current->seq);
+			break;
+		}
+		current = current->next;
+	}
+	return nextSeq;
 }
 
 void addrtest() {

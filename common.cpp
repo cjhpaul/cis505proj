@@ -15,10 +15,17 @@ pthread_t g_pid_receive_thread_client;
 pthread_t g_keep_alive_thread_client;
 pthread_t g_fgets_thread_client;
 
+//todo: name requirement: 1) unique name, 2) not containing ':'
+
 //sequencer
 //controller for sequencer
 void SequencerController(char* recv_data, sockaddr_in addr){
 	char *cmd;
+	//if msg has seq# 0 which is meaningless, ignore seq#.
+	//e.g., 0:rec:name can be sent to either sequencer and client
+	if (recv_data[0] == '0') {
+		cmd = strsep(&recv_data, ":");
+	}	
 	cmd = strsep(&recv_data, ":");
 	//when a client joins
 	//register ip, port, name etc
@@ -42,7 +49,8 @@ void SequencerController(char* recv_data, sockaddr_in addr){
 
 		//out-protocol: res:clientip:clientport:userlist
 		ShowListWithLeader(listbuffer);
-		sprintf(buffer, "res:%s:%d:%s", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), listbuffer);
+		int seq = GetNextSequenceNumberByAddr(g_alist, addr);
+		sprintf(buffer, "%d:res:%s:%d:%s", seq, inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), listbuffer);
 		//send a list of users to the client
 		sendto(g_fd, buffer, strlen(buffer), 0, 
 			(struct sockaddr *)&addr, sizeof(addr));
@@ -74,11 +82,23 @@ void SequencerController(char* recv_data, sockaddr_in addr){
 //multicast to those in client list
 void MultiCast(char* msg){
 	struct anode* current = g_alist;
+	char msgwithseq[BUFSIZE];
+	int DoWeGetSeqNumber = 0;
+	if (msg[0] == 'k' && msg[1] == 'p' && msg[2] == 'a') {
+		DoWeGetSeqNumber = 1;
+	}
 	//multicasting for all the registered clients
 	while (current != NULL) {
 		//do multicast
-		sendto(g_fd, msg, 
-			strlen(msg), 
+		int seq;
+		if (DoWeGetSeqNumber){
+			seq = 0;
+		} else {
+			seq = GetNextSequenceNumberByAddr(g_alist, current->addr);
+		}
+		sprintf(msgwithseq, "%d:%s", seq, msg);
+		sendto(g_fd, msgwithseq, 
+			strlen(msgwithseq), 
 			0, 
 			(struct sockaddr *)&(current->addr), 
 			sizeof(current->addr));
@@ -124,7 +144,15 @@ void GetUpdateList(char* buffer){
 //controller for client
 void ClientController(char* recv_data, sockaddr_in recvaddr){
 	char *cmd;
+	char seqstr[10];
 	cmd = strsep(&recv_data, ":");
+	strcpy(seqstr, cmd);
+	cmd = strsep(&recv_data, ":");
+
+	// if (atoi(seqstr) != 0) {
+	// 	printf("***debug client: %s: %s: %s\n", seqstr, cmd, recv_data);
+	// }
+
 	//from server/sequencer
 	//response to register req, it should get user name
 	//in-protocol: res:clientip:clientport:userlist
@@ -143,10 +171,10 @@ void ClientController(char* recv_data, sockaddr_in recvaddr){
 		printf("%s %s:%d\n", namewithleader, g_server, g_port);
 		printf("%s", recv_data);
 	}
-	//from client, we need to re-direct to sequencer
+	//from client to another client requesting re-direction to sequencer
 	else if (strcmp(cmd, "rec") == 0) {
 		char send_data[BUFSIZE];
-		sprintf(send_data, "red:%s:%s:%d", g_leaderName, g_server, g_port);
+		sprintf(send_data, "0:red:%s:%s:%d", g_leaderName, g_server, g_port);
 		socklen_t slen = sizeof(recvaddr);
 		if (sendto(g_fdclient, send_data, strlen(send_data), 0, (struct sockaddr *)&recvaddr, slen)==-1) {
 			perror("sendto");
@@ -225,11 +253,11 @@ void UpdateClientList(char* recv_data){
 			break;
 		strcpy(name, token);
 		if ((token = strsep(&recv_data, ":")) == NULL){
-			printf("error\n");
+			printf("error1\n");
 		}
 		strcpy(ip, token);
 		if ((token = strsep(&recv_data, ":")) == NULL){
-			printf("error\n");
+			printf("error2\n");
 		}
 		strcpy(port, token);
 		Push(&g_alist, ip, atoi(port), name);

@@ -52,8 +52,8 @@ int DoClientWork(char* name, char* port){
 
 	//register client info with sequencer
 	//once sequencer gets rec msg, it will send user list
-	//out-protocol: rec:clientname
-	sprintf(send_data, "rec:%s", name);
+	//out-protocol: rec:seq:clientname
+	sprintf(send_data, "0:rec:%s", name);
 	sendto(g_fdclient, send_data, strlen(send_data), 0, (struct sockaddr *)&g_remaddrclient, slen);
 
 	while (!isEOF){

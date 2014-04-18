@@ -9,6 +9,7 @@ struct anode{
 	sockaddr_in addr;
 	char name[MAXNAME];
 	int livecount;
+	int seq; //seq# 0 or less than 0 can be ignored.
 	struct anode *next;
 };
 
@@ -26,5 +27,6 @@ void IncrementLiveCount(struct anode* head);
 void ZeroizeLiveCount(struct anode* head, char* name);
 void DeleteNode(struct anode** headRef, char* name);
 int DeleteNodeByLiveCount(struct anode** headRef, int livecountlimit, char* name);
+int GetNextSequenceNumberByAddr(struct anode* head, sockaddr_in addr);
 
 void addrtest();
