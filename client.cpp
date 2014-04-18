@@ -61,10 +61,7 @@ int DoClientWork(char* name, char* port){
 		if (livecountForSequencer >= AUDIT_TIME) {
 			int myport;
 			char leaderName[MAXNAME];
-			//todo: its randomly not printing
-			printf("NOTICE %s left the chat or crashed\n", g_leaderName);
 			if ((myport = LeaderElection(name, leaderName)) != 0) {
-				printf("NOTICE You are a new leader\n");
 				close(g_fdclient);
 				pthread_cancel(g_pid_receive_thread_client);				
 				pthread_cancel(g_fgets_thread_client);

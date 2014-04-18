@@ -20,7 +20,7 @@ int DoSequencerWork(char* name, int p){
 		return 0;
 	}
 	PORT = p;
-	if (p == -1) { //todo: clean up stdout output
+	if (p == -1) {
 		PORT = 12346;
 	}
 
@@ -64,7 +64,10 @@ int DoSequencerWork(char* name, int p){
 	char send_data[BUFSIZE];
 
 	//if this is a new leader, multicast to claim "I'm a leader!"
-	if (p >= 0) { //todo
+	if (p >= 0) {
+		sprintf(send_data, "msg:NOTICE %s left the chat or crashed\n", g_leaderName);
+		MultiCast(send_data);
+		printf("NOTICE You are a new leader\n");
 		sprintf(send_data, "upl:%s", name);
 		MultiCast(send_data);
 	}

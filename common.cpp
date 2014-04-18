@@ -129,14 +129,19 @@ void ClientController(char* recv_data, sockaddr_in recvaddr){
 	//response to register req, it should get user name
 	//in-protocol: reg:clientip:clientport:userlist
 	if (strcmp(cmd, "reg") == 0){
+		printf("***debug reg client: %s\n", recv_data);
 		char myip[20];
 		char myport[10];
+		char namewithleader[MAXNAME+10];
 		cmd = strsep(&recv_data, ":");
 		strcpy(myip, cmd);
 		cmd = strsep(&recv_data, ":");
 		strcpy(myport, cmd);
+		cmd = strsep(&recv_data, "\n");
+		strcpy(namewithleader, cmd);
 		printf("%s joining a new chat on %s:%d, listening on %s:%s\n", g_name, g_server, g_port, myip, myport);
 		printf("Succeeded, current users:\n");
+		printf("%s %s:%d\n", namewithleader, g_server, g_port);
 		printf("%s", recv_data);
 	}
 	//in-protocol: msg:MessageToThisClient
