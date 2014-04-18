@@ -15,6 +15,7 @@ int LeaderElection(char* name, char* leaderName);
 
 extern int g_fd;
 extern char g_leaderinfo[MAXNAME + 20]; //keeps leader/sequencer info
+extern char g_leaderName[MAXNAME];
 extern int g_fdclient;
 extern char g_name[MAXNAME];
 extern char g_server[20];

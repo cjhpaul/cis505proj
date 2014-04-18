@@ -3,4 +3,4 @@
 #define MAXCLIENT 5
 #define MAXNAME 20
 #define HEARTBEAT_TIME 1
-#define AUDIT_TIME 3
+#define AUDIT_TIME 4

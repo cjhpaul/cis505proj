@@ -25,6 +25,7 @@ int DoClientWork(char* name, char* port){
 	if ((g_fdclient=socket(AF_INET, SOCK_DGRAM, 0))==-1)
 		printf("socket created\n");
 
+	//my addr
 	memset((char *)&g_myaddr, 0, sizeof(g_myaddr));
 	g_myaddr.sin_family = AF_INET;
 	g_myaddr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -33,6 +34,7 @@ int DoClientWork(char* name, char* port){
 		perror("bind failed");
 		return 0;
 	}
+	//remote addr
 	memset((char *) &g_remaddrclient, 0, sizeof(g_remaddrclient));
 	g_remaddrclient.sin_family = AF_INET;
 	g_remaddrclient.sin_port = htons(atoi(port));
@@ -41,10 +43,8 @@ int DoClientWork(char* name, char* port){
 		exit(1);
 	}
 
-	//receive_thread
+	//fork thread
 	pthread_create (&g_pid_receive_thread_client, NULL, &ReceiveThreadWorkerClient, NULL);
-
-	//fgets thread
 	pthread_create (&g_fgets_thread_client, NULL, &FgetsThreadClient, NULL);
 
 	//send_thread
@@ -63,10 +63,12 @@ int DoClientWork(char* name, char* port){
 			char leaderName[MAXNAME];
 			//todo: get the leader name
 			printf("NOTICE sequencer left the chat or crashed\n");
+			printf("***debug leaderinfo: %s\n", g_leaderinfo);
 			if ((myport = LeaderElection(name, leaderName)) != 0) {
+				printf("NOTICE You are a new leader\n");
+				close(g_fdclient);
 				pthread_cancel(g_pid_receive_thread_client);				
 				pthread_cancel(g_fgets_thread_client);
-				close(g_fdclient);
 				DeleteNode(&g_alist, name);
 				DoSequencerWork(name, myport);
 				pthread_join(g_pid_receive_thread_client, NULL);
@@ -79,14 +81,11 @@ int DoClientWork(char* name, char* port){
 		}
 		sleep(HEARTBEAT_TIME);
 	}
-
-	pthread_cancel(g_pid_receive_thread_client);
-	pthread_join(g_pid_receive_thread_client, NULL);
-
-    pthread_cancel(g_fgets_thread_client);
-    pthread_join(g_fgets_thread_client, NULL);
-
 	close(g_fdclient);
+	pthread_cancel(g_pid_receive_thread_client);
+    pthread_cancel(g_fgets_thread_client);
+    pthread_join(g_pid_receive_thread_client, NULL);
+    pthread_join(g_fgets_thread_client, NULL);
 	return 0;
 }
 
@@ -106,7 +105,7 @@ void* ReceiveThreadWorkerClient (void *p){
 			ClientController(recv_data, recvaddr);
 		}
 	}
-	pthread_exit (NULL);
+	pthread_exit(NULL);
 }
 
 void *FgetsThreadClient (void *) {
@@ -135,6 +134,7 @@ void *FgetsThreadClient (void *) {
 		}
 	}
 	isEOF = 1;
+	close(g_fdclient);
 	pthread_cancel(g_pid_receive_thread_client);
 	pthread_join(g_pid_receive_thread_client, NULL);
 	pthread_exit(NULL);

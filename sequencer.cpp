@@ -7,13 +7,14 @@
 #include <ifaddrs.h>
 #include <pthread.h>
 // #define PORT 12346 //hardcoded for now
+//todo: connect via other clients
+//todo: add seq# to all message types
 
 void *ReceiveThreadWorker (void *);
 void *KeepAliveThread (void *);
 
 int DoSequencerWork(char* name, int p){
 	int PORT;
-	struct sockaddr_in myaddr; //todo: g_myaddr?
 	if ((g_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		perror("cannot create socket\n");
 		return 0;
@@ -23,44 +24,39 @@ int DoSequencerWork(char* name, int p){
 		PORT = 12346;
 	}
 
-	memset((char *)&myaddr, 0, sizeof(myaddr));
-	myaddr.sin_family = AF_INET;
-	myaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	myaddr.sin_port = htons(PORT);
-	if (bind(g_fd, (struct sockaddr *)&myaddr, sizeof(myaddr)) < 0) {
+	//setup my address
+	memset((char *)&g_myaddr, 0, sizeof(g_myaddr));
+	g_myaddr.sin_family = AF_INET;
+	g_myaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	g_myaddr.sin_port = htons(PORT);
+	if (bind(g_fd, (struct sockaddr *)&g_myaddr, sizeof(g_myaddr)) < 0) {
 		perror("bind failed");
 		return 0;
 	}
 
+	//update leader info and print current users
 	char ip[20];
 	GetIP(ip);
-	//update leader info and print current users
 	sprintf(g_leaderinfo, "%s %s:%d", name, ip, PORT);
-	printf("%s started a new chat, listening on %s:%d\n", name, ip, PORT);
-	printf("Succeeded, current users:\n");
 	char userlist[BUFSIZE];
 	ShowListWithLeader(userlist);
-	printf("%s", userlist);
-	
-	printf("Waiting for others to join...\n");
 
+	//new leader has arrived. Time for all clients to update their client list
 	if (p >= 0) {
-		//new leader has arrived. Time for all clients to update their client list
 		char clist[BUFSIZE];
-		
-		strcpy(clist, "test\n");
-		MultiCast(clist);
-
 		GetUpdateList(clist);
 		MultiCast(clist);
 	}
+	else {
+		printf("%s started a new chat, listening on %s:%d\n", name, ip, PORT);
+		printf("Succeeded, current users:\n");
+		printf("%s", userlist);
+		printf("Waiting for others to join...\n");
+	}
 
-	//receive_thread
-	pthread_t pid_receive_thread;
+	//fork threads
+	pthread_t pid_receive_thread, keep_alive_thread;
 	pthread_create (&pid_receive_thread, NULL, &ReceiveThreadWorker, NULL);
-
-	// keep_alive thread
-	pthread_t keep_alive_thread;
 	pthread_create (&keep_alive_thread, NULL, &KeepAliveThread, NULL);
 
 	//send_thread
@@ -72,17 +68,19 @@ int DoSequencerWork(char* name, int p){
 		sprintf(send_data, "upl:%s", name);
 		MultiCast(send_data);
 	}
+
+	//fgets loop
 	while(fgets(msg, sizeof(msg), stdin) != NULL){
 		sprintf(send_data, "msg:%s:: %s", name, msg);
 		MultiCast(send_data);
     }
+
+    //clean up
+    close(g_fd);
     pthread_cancel(pid_receive_thread);
-    pthread_join(pid_receive_thread, NULL);
-
 	pthread_cancel(keep_alive_thread);
+	pthread_join(pid_receive_thread, NULL);
     pthread_join(keep_alive_thread, NULL);
-
-	close(g_fd);
 	return 0;
 }
 

@@ -1,9 +1,9 @@
 #include "common.h"
 #include "addrlist.h"
 
-int g_fd;
+int g_fd, g_fdclient;
 char g_leaderinfo[MAXNAME + 20]; //keeps leader/sequencer info
-int g_fdclient;
+char g_leaderName[MAXNAME];
 char g_name[MAXNAME];
 char g_server[20];
 int g_port;
@@ -15,6 +15,7 @@ pthread_t g_pid_receive_thread_client;
 pthread_t g_keep_alive_thread_client;
 pthread_t g_fgets_thread_client;
 
+//sequencer
 //controller for sequencer
 void SequencerController(char* recv_data, sockaddr_in addr){
 	char *cmd;
@@ -117,6 +118,7 @@ void GetUpdateList(char* buffer){
 	return;
 }
 
+//client
 //controller for client
 void ClientController(char* recv_data, sockaddr_in recvaddr){
 	char *cmd;
@@ -196,7 +198,7 @@ int LeaderElection(char* name, char* leaderName) {
 	}
 	strcpy(leaderName, current->name);
 	if (strcmp(name, current->name) == 0) {
-		return htons(current->addr.sin_port);
+		return current->addr.sin_port;
 	}
 	return 0;
 }

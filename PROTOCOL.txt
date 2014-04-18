@@ -23,7 +23,7 @@ S->A upd:name1:ip1:port1:name2:ip2:port2:...:end
 Each client updates their client list
 
 Update leader info
-S->A udl:name
+S->A upl:name
 
 Requrements
 -User can start a new chat group
