@@ -61,9 +61,8 @@ int DoClientWork(char* name, char* port){
 		if (livecountForSequencer >= AUDIT_TIME) {
 			int myport;
 			char leaderName[MAXNAME];
-			//todo: get the leader name
-			printf("NOTICE sequencer left the chat or crashed\n");
-			printf("***debug leaderinfo: %s\n", g_leaderinfo);
+			//todo: its randomly not printing
+			printf("NOTICE %s left the chat or crashed\n", g_leaderName);
 			if ((myport = LeaderElection(name, leaderName)) != 0) {
 				printf("NOTICE You are a new leader\n");
 				close(g_fdclient);

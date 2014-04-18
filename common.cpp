@@ -104,7 +104,10 @@ void ShowListWithLeader(char* buffer){
 //get upd message for sequencer
 void GetUpdateList(char* buffer){
 	char line[MAXNAME + 20];
-	strcpy(buffer, "upd:");
+	char *leadername, *leaderinfo;
+	leaderinfo = g_leaderinfo;
+	leadername = strsep(&leaderinfo, " ");
+	sprintf(buffer, "upd:%s:", leadername);
 	struct anode* current = g_alist;
 	while (current != NULL) {
 		sprintf(line, "%s:%s:%d:", 
@@ -171,6 +174,10 @@ void UpdateClientList(char* recv_data){
 	char name[MAXNAME], ip[20], port[10];
 	//initialize the client list
 	DeleteList(&g_alist);
+
+	token = strsep(&recv_data, ":");
+	strcpy(g_leaderName, token);
+
 	//add clients to the list
 	while ((token = strsep(&recv_data, ":")) != NULL){
 		if (strcmp(token, "end") == 0)
