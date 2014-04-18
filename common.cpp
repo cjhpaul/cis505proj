@@ -129,7 +129,6 @@ void ClientController(char* recv_data, sockaddr_in recvaddr){
 	//response to register req, it should get user name
 	//in-protocol: reg:clientip:clientport:userlist
 	if (strcmp(cmd, "reg") == 0){
-		printf("***debug reg client: %s\n", recv_data);
 		char myip[20];
 		char myport[10];
 		char namewithleader[MAXNAME+10];

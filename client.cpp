@@ -72,6 +72,14 @@ int DoClientWork(char* name, char* port){
 				return 0;
 			}
 			else { //im a client
+				//waiting for a response from a new leader
+				if (livecountForSequencer >= AUDIT_TIME + AUDIT_TIME) {
+					//enough waiting, i'll remove the new leader
+					//note: this happens when a (supposely) newly selected leader happens to crash/leave
+					// before it does all the necessary sequencer job
+					//it will remove the newly elected/non-responsive leader then go another leader election
+					DeleteNode(&g_alist, leaderName);
+				}
 				GetAddrByName(g_alist, g_remaddrclient, leaderName);
 			}
 		}
