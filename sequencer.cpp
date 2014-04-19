@@ -7,7 +7,6 @@
 #include <ifaddrs.h>
 #include <pthread.h>
 // #define PORT 12346 //hardcoded for now
-//todo: add seq# to all message types
 
 void *ReceiveThreadWorker (void *);
 void *KeepAliveThread (void *);

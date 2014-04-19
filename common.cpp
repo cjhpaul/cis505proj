@@ -272,12 +272,20 @@ int LeaderElection(char* name, char* leaderName) {
 	if (NULL == g_alist) {
 		return -1;
 	}
-	while (current->next != NULL) {
+	char minName[MAXNAME];
+	int minPort;
+	strcpy(minName, "");
+	while (current != NULL) {
+		if ((strcmp(minName, "") == 0) ||
+			(strcmp(minName, current->name) > 0)) {
+			strcpy(minName, current->name);
+			minPort = current->addr.sin_port;
+		}
 		current = current->next;
 	}
-	strcpy(leaderName, current->name);
-	if (strcmp(name, current->name) == 0) {
-		return ntohs(current->addr.sin_port);
+	strcpy(leaderName, minName);
+	if (strcmp(name, minName) == 0) {
+		return ntohs(minPort);
 	}
 	return 0;
 }
