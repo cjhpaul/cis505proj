@@ -12,6 +12,10 @@ int main(int argc, char **argv)
 	addrtest();
 	return 0;
 #endif
+	// char ctest[BUFSIZE];
+	// strcpy(ctest, "testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttest");
+	// std::hash<char*> ch_hash;
+	// printf("hash: %lu\n", ch_hash(ctest));
 
 	int result;
 	//name length check

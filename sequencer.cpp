@@ -90,6 +90,7 @@ void* ReceiveThreadWorker (void *p){
 	struct sockaddr_in addr;
 	socklen_t slen = sizeof(addr);
 	char recv_data[BUFSIZE];
+	char recv_data2[BUFSIZE];
 	while(1){
 		//clear buffer
 		memset(&recv_data[0], 0, sizeof(recv_data));
@@ -97,8 +98,10 @@ void* ReceiveThreadWorker (void *p){
 		recvlen = recvfrom(g_fd, recv_data, BUFSIZE, 0, (struct sockaddr *)&addr, &slen);
 		if (recvlen >= 0) {
 			recv_data[recvlen] = 0;
-			//parse & do operation with msg
-			SequencerController(recv_data, addr);
+			if (CheckSum(recv_data, recv_data2)) {
+				//parse & do operation with msg
+				SequencerController(recv_data2, addr);	
+			}
 		}
 	}
 	pthread_exit (NULL);

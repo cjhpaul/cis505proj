@@ -54,7 +54,9 @@ int DoClientWork(char* name, char* port){
 	//once sequencer gets rec msg, it will send user list
 	//out-protocol: rec:seq:clientname
 	sprintf(send_data, "0:rec:%s", name);
-	sendto(g_fdclient, send_data, strlen(send_data), 0, (struct sockaddr *)&g_remaddrclient, slen);
+	char send_data_chksum[BUFSIZE];
+	sprintf(send_data_chksum, "%d:%s", chash(send_data), send_data);
+	sendto(g_fdclient, send_data_chksum, strlen(send_data_chksum), 0, (struct sockaddr *)&g_remaddrclient, slen);
 
 	while (!isEOF){
 		livecountForSequencer++;
@@ -102,6 +104,7 @@ void* ReceiveThreadWorkerClient (void *p){
 	struct sockaddr_in recvaddr;
 	socklen_t slen = sizeof(recvaddr);
 	char recv_data[BUFSIZE];
+	char recv_data2[BUFSIZE];
 	while(1){
 		//clear buffer
 		memset(&recv_data[0], 0, sizeof(recv_data));
@@ -109,8 +112,11 @@ void* ReceiveThreadWorkerClient (void *p){
 		recvlen = recvfrom(g_fdclient, recv_data, BUFSIZE, 0, (struct sockaddr *)&recvaddr, &slen);
 		if (recvlen >= 0) {
 			recv_data[recvlen] = 0;
-			//parse & do operation with msg
-			ClientController(recv_data, recvaddr);
+
+			if (CheckSum(recv_data, recv_data2)) {
+				//parse & do operation with msg
+				DoClientMessageQueueOperation(recv_data2, recvaddr);
+			}
 		}
 	}
 	pthread_exit(NULL);
@@ -136,7 +142,11 @@ void *FgetsThreadClient (void *) {
 		//out-protocol: msg:MessageToSendToSequencer
 		strcpy(send_data, "msg:");
 		strcat(send_data, msg_buffer);
-		if (sendto(g_fdclient, send_data, strlen(send_data), 0, (struct sockaddr *)&g_remaddrclient, sizeof(g_remaddrclient))==-1) {
+
+		char send_data_chksum[BUFSIZE];
+		sprintf(send_data_chksum, "%d:%s", chash(send_data), send_data);
+
+		if (sendto(g_fdclient, send_data_chksum, strlen(send_data_chksum), 0, (struct sockaddr *)&g_remaddrclient, sizeof(g_remaddrclient))==-1) {
 			perror("sendto");
 			exit(1);
 		}

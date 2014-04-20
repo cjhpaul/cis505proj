@@ -4,14 +4,20 @@
 #include "limits.h"
 #include <ifaddrs.h>
 #include <pthread.h>
+#include <string>
 
 void SequencerController(char* recv_data, sockaddr_in addr);
 void MultiCast(char* msg);
 void ShowListWithLeader(char* buffer);
 void GetUpdateList(char* buffer);
 void ClientController(char* recv_data, sockaddr_in recvaddr);
+void DoClientMessageQueueOperation(char* recv_data, sockaddr_in recvaddr);
 void UpdateClientList(char* recv_data);
 int LeaderElection(char* name, char* leaderName);
+int CheckSum(char* recv_data, char* out_data);
+int chash(const char *str);
+
+extern std::hash<char*> ch_hash;
 
 extern int g_fd;
 extern char g_leaderinfo[MAXNAME + 20]; //keeps leader/sequencer info

@@ -14,6 +14,7 @@ int livecountForSequencer;
 pthread_t g_pid_receive_thread_client;
 pthread_t g_keep_alive_thread_client;
 pthread_t g_fgets_thread_client;
+std::hash<char*> ch_hash;
 
 //todo: name requirement: 1) unique name, 2) not containing ':'
 
@@ -51,8 +52,12 @@ void SequencerController(char* recv_data, sockaddr_in addr){
 		ShowListWithLeader(listbuffer);
 		int seq = GetNextSequenceNumberByAddr(g_alist, addr);
 		sprintf(buffer, "%d:res:%s:%d:%s", seq, inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), listbuffer);
+
+		char send_data_chksum[BUFSIZE];
+		sprintf(send_data_chksum, "%d:%s", chash(buffer), buffer);
+
 		//send a list of users to the client
-		sendto(g_fd, buffer, strlen(buffer), 0, 
+		sendto(g_fd, send_data_chksum, strlen(send_data_chksum), 0, 
 			(struct sockaddr *)&addr, sizeof(addr));
 	}
 	//msg
@@ -97,8 +102,12 @@ void MultiCast(char* msg){
 			seq = GetNextSequenceNumberByAddr(g_alist, current->addr);
 		}
 		sprintf(msgwithseq, "%d:%s", seq, msg);
-		sendto(g_fd, msgwithseq, 
-			strlen(msgwithseq), 
+
+		char send_data_chksum[BUFSIZE];
+		sprintf(send_data_chksum, "%d:%s", chash(msgwithseq), msgwithseq);
+
+		sendto(g_fd, send_data_chksum, 
+			strlen(send_data_chksum), 
 			0, 
 			(struct sockaddr *)&(current->addr), 
 			sizeof(current->addr));
@@ -141,12 +150,41 @@ void GetUpdateList(char* buffer){
 }
 
 //client
+void DoClientMessageQueueOperation(char* recv_data, sockaddr_in recvaddr) {
+	int seq;
+	char *cmd;
+	char seqstr[10], msg[BUFSIZE];
+	cmd = strsep(&recv_data, ":");
+	strcpy(seqstr, cmd);
+	seq = atoi(seqstr);
+	strcpy(msg, recv_data);
+
+	ClientController(msg, recvaddr); //todo: remove this
+
+	//// todo: ignore seq# 0
+	// //ignore duplicate messages
+	// if (g_sequencenumber >= seq) {
+	// 	return;
+	// }
+	// Entry en;
+	// sockaddr_in msgaddr;
+	//PutMessageQueue(seq, msg, recvaddr)
+	//en = DequeueMessageQueue(g_sequencenumber+1)
+	// while (en != NULL) {
+	// 	g_sequencenumber++;
+	// 	ExtractEntry(en, msg, msgaddr); //use en->msg, en->msgaddr
+	// 	ClientController(msg, msgaddr);
+	// 	en = DequeueMessageQueue(g_sequencenumber+1);
+	// }
+	// if (MessageQueueCount != 0) {
+	// 	//ask sequencer to send g_sequencenumber+1
+	//	//ask:seq
+	// }
+	return;
+}
 //controller for client
 void ClientController(char* recv_data, sockaddr_in recvaddr){
 	char *cmd;
-	char seqstr[10];
-	cmd = strsep(&recv_data, ":");
-	strcpy(seqstr, cmd);
 	cmd = strsep(&recv_data, ":");
 
 	// if (atoi(seqstr) != 0) {
@@ -175,8 +213,12 @@ void ClientController(char* recv_data, sockaddr_in recvaddr){
 	else if (strcmp(cmd, "rec") == 0) {
 		char send_data[BUFSIZE];
 		sprintf(send_data, "0:red:%s:%s:%d", g_leaderName, g_server, g_port);
+
+		char send_data_chksum[BUFSIZE];
+		sprintf(send_data_chksum, "%d:%s", chash(send_data), send_data);
+
 		socklen_t slen = sizeof(recvaddr);
-		if (sendto(g_fdclient, send_data, strlen(send_data), 0, (struct sockaddr *)&recvaddr, slen)==-1) {
+		if (sendto(g_fdclient, send_data_chksum, strlen(send_data_chksum), 0, (struct sockaddr *)&recvaddr, slen)==-1) {
 			perror("sendto");
 			exit(1);
 		}
@@ -202,8 +244,12 @@ void ClientController(char* recv_data, sockaddr_in recvaddr){
 		//send rec to real server/sequencer this time
 		char send_data[BUFSIZE];
 		sprintf(send_data, "rec:%s", g_name);
+
+		char send_data_chksum[BUFSIZE];
+		sprintf(send_data_chksum, "%d:%s", chash(send_data), send_data);
+
 		socklen_t slen = sizeof(g_remaddrclient);
-		if (sendto(g_fdclient, send_data, strlen(send_data), 0, (struct sockaddr *)&g_remaddrclient, slen)==-1) {
+		if (sendto(g_fdclient, send_data_chksum, strlen(send_data_chksum), 0, (struct sockaddr *)&g_remaddrclient, slen)==-1) {
 			perror("sendto");
 			exit(1);
 		}
@@ -225,8 +271,12 @@ void ClientController(char* recv_data, sockaddr_in recvaddr){
 		if (strcmp(recv_data, "KEEP_ALIVE") == 0){
 			char alive[20];
 			strcpy(alive, "kpa:ALIVE");
+
+			char send_data_chksum[BUFSIZE];
+			sprintf(send_data_chksum, "%d:%s", chash(alive), alive);
+
 			socklen_t slen = sizeof(recvaddr);
-			if (sendto(g_fdclient, alive, strlen(alive), 0, (struct sockaddr *)&recvaddr, slen)==-1) {
+			if (sendto(g_fdclient, send_data_chksum, strlen(send_data_chksum), 0, (struct sockaddr *)&recvaddr, slen)==-1) {
 				perror("sendto");
 				exit(1);
 			}
@@ -288,4 +338,26 @@ int LeaderElection(char* name, char* leaderName) {
 		return ntohs(minPort);
 	}
 	return 0;
+}
+
+int CheckSum(char* recv_data, char* out_data) {
+	char *cmd;
+	cmd = strsep(&recv_data, ":");
+	int checksum;
+	if (!isdigit(cmd[0])) {
+		return 0;
+	}
+	checksum = atoi(cmd);
+	strcpy(out_data, recv_data);
+	return chash(out_data) == checksum;
+}
+
+//Stroustrup's book
+//ref: http://stackoverflow.com/questions/2535284/how-can-i-hash-a-string-to-an-int-using-c
+int chash(const char *str)
+{
+    int h = 0;
+    while (*str)
+       h = h << 1 ^ *str++;
+    return h;
 }
