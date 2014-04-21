@@ -11,22 +11,51 @@ struct sockaddr_in g_remaddrclient, g_myaddr;
 int isLeaderChanged;
 int isEOF;
 int livecountForSequencer;
+int g_seqFromClientToSequencer;
+int g_seqFromSequencerToClient;
+
 pthread_t g_pid_receive_thread_client;
 pthread_t g_keep_alive_thread_client;
 pthread_t g_fgets_thread_client;
-std::hash<char*> ch_hash;
 
 //todo: name requirement: 1) unique name, 2) not containing ':'
 
 //sequencer
+void DoSequencerMessageQueueOperation(char* recv_data, sockaddr_in recvaddr) {
+	int seq;
+	char *cmd;
+	char seqstr[10], msg[BUFSIZE];
+	cmd = strsep(&recv_data, ":");
+	strcpy(seqstr, cmd);
+	seq = atoi(seqstr);
+	strcpy(msg, recv_data);
+
+	SequencerController(msg, recvaddr); //todo: remove this
+
+	// // todo: implement this
+	// if (seq == 0) {
+	// 	SequencerController(msg, recvaddr);
+	// 	return;
+	// }
+	// MsgQueueEnqueue(RecvQueue, seq, msg, recvaddr);
+	// if (MsgQueuePeek(RecvQueue, g_seqFromSequencerToClient+1, recvaddr) == NULL) {
+	// 	sendto("ask:seq+1");
+	// 	return;
+	// }
+	// Entry en = MsgQueueDequeue(RecvQueue, g_seqFromSequencerToClient+1, recvaddr);
+	// while (en != NULL) {
+	// 	g_seqFromSequencerToClient++;
+	// 	SequencerController(en->msg, recvaddr);
+	// 	en = MsgQueueDequeue(RecvQueue, g_seqFromSequencerToClient+1, recvaddr);
+	// }
+	return;
+}
+
 //controller for sequencer
 void SequencerController(char* recv_data, sockaddr_in addr){
 	char *cmd;
 	//if msg has seq# 0 which is meaningless, ignore seq#.
 	//e.g., 0:rec:name can be sent to either sequencer and client
-	if (recv_data[0] == '0') {
-		cmd = strsep(&recv_data, ":");
-	}	
 	cmd = strsep(&recv_data, ":");
 	//when a client joins
 	//register ip, port, name etc
@@ -77,6 +106,13 @@ void SequencerController(char* recv_data, sockaddr_in addr){
 		char name[MAXNAME];
 		GetNameByAddr(g_alist, addr, name);
 		ZeroizeLiveCount(g_alist, name);
+	}
+	else if (strcmp(cmd, "ask") == 0){
+		//todo: implement this
+		// Entry en = MsgQueueDequeue(SentQueue, atoi(recv_data), addr);
+		// if (en != NULL) {
+		// 	sendto("chksum:en->seq:en->msg", addr);
+		// }
 	}
 	else {
 		printf("nothing\n");
@@ -161,24 +197,22 @@ void DoClientMessageQueueOperation(char* recv_data, sockaddr_in recvaddr) {
 
 	ClientController(msg, recvaddr); //todo: remove this
 
-	//// todo: ignore seq# 0
-	// //ignore duplicate messages
-	// if (g_sequencenumber >= seq) {
+	// // todo: implement this
+	// if (seq == 0) { //ignore seq#
+	// 	ClientController(msg, recvaddr);
+	// }
+	// if (g_seqFromClientToSequencer >= seq) { //duplicated
 	// 	return;
 	// }
-	// Entry en;
-	// sockaddr_in msgaddr;
-	//PutMessageQueue(seq, msg, recvaddr)
-	//en = DequeueMessageQueue(g_sequencenumber+1)
+	// PutMessageQueue(seq, msg, recvaddr)
+	// Entry en = DequeueMessageQueue(RecvQueue, g_seqFromClientToSequencer+1, recvaddr);
 	// while (en != NULL) {
-	// 	g_sequencenumber++;
-	// 	ExtractEntry(en, msg, msgaddr); //use en->msg, en->msgaddr
-	// 	ClientController(msg, msgaddr);
-	// 	en = DequeueMessageQueue(g_sequencenumber+1);
+	// 	g_seqFromClientToSequencer++;
+	// 	ClientController(en->msg, en->addr);
+	// 	en = DequeueMessageQueue(RecvQueue, g_seqFromClientToSequencer+1, recvaddr);
 	// }
-	// if (MessageQueueCount != 0) {
-	// 	//ask sequencer to send g_sequencenumber+1
-	//	//ask:seq
+	// if (MsgQueueCounter(RecvQueue) != 0) {
+	// 	sendto("ask:g_seqFromClientToSequencer+1");
 	// }
 	return;
 }
@@ -243,7 +277,7 @@ void ClientController(char* recv_data, sockaddr_in recvaddr){
 		}
 		//send rec to real server/sequencer this time
 		char send_data[BUFSIZE];
-		sprintf(send_data, "rec:%s", g_name);
+		sprintf(send_data, "0:rec:%s", g_name);
 
 		char send_data_chksum[BUFSIZE];
 		sprintf(send_data_chksum, "%d:%s", chash(send_data), send_data);
@@ -267,10 +301,17 @@ void ClientController(char* recv_data, sockaddr_in recvaddr){
 		strcpy(g_server, inet_ntoa(recvaddr.sin_addr));
 		g_port = ntohs(recvaddr.sin_port);
 	}
+	else if (strcmp(cmd, "ask") == 0){
+		//todo: implement this
+		// Entry en = MsgQueueDequeue(SentQueue, atoi(recv_data), addr);
+		// if (en != NULL) {
+		// 	sendto("chksum:en->seq:en->msg", addr);
+		// }
+	}
 	else if (strcmp(cmd, "kpa") == 0) {
 		if (strcmp(recv_data, "KEEP_ALIVE") == 0){
 			char alive[20];
-			strcpy(alive, "kpa:ALIVE");
+			strcpy(alive, "0:kpa:ALIVE");
 
 			char send_data_chksum[BUFSIZE];
 			sprintf(send_data_chksum, "%d:%s", chash(alive), alive);

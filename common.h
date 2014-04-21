@@ -12,12 +12,11 @@ void ShowListWithLeader(char* buffer);
 void GetUpdateList(char* buffer);
 void ClientController(char* recv_data, sockaddr_in recvaddr);
 void DoClientMessageQueueOperation(char* recv_data, sockaddr_in recvaddr);
+void DoSequencerMessageQueueOperation(char* recv_data, sockaddr_in recvaddr);
 void UpdateClientList(char* recv_data);
 int LeaderElection(char* name, char* leaderName);
 int CheckSum(char* recv_data, char* out_data);
 int chash(const char *str);
-
-extern std::hash<char*> ch_hash;
 
 extern int g_fd;
 extern char g_leaderinfo[MAXNAME + 20]; //keeps leader/sequencer info
@@ -26,6 +25,8 @@ extern int g_fdclient;
 extern char g_name[MAXNAME];
 extern char g_server[20];
 extern int g_port;
+extern int g_seqFromClientToSequencer;
+extern int g_seqFromSequencerToClient;
 extern struct sockaddr_in g_remaddrclient, g_myaddr;
 extern int isLeaderChanged;
 extern int isEOF;

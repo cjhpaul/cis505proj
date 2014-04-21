@@ -98,9 +98,11 @@ void* ReceiveThreadWorker (void *p){
 		recvlen = recvfrom(g_fd, recv_data, BUFSIZE, 0, (struct sockaddr *)&addr, &slen);
 		if (recvlen >= 0) {
 			recv_data[recvlen] = 0;
-			if (CheckSum(recv_data, recv_data2)) {
+			if (CheckSum(recv_data, recv_data2) == 1) {
 				//parse & do operation with msg
-				SequencerController(recv_data2, addr);	
+				DoSequencerMessageQueueOperation(recv_data2, addr);
+				//*** //parse & do operation with msg
+				// SequencerController(recv_data2, addr);	
 			}
 		}
 	}
