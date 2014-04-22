@@ -1,5 +1,6 @@
 #include "common.h"
 #include "addrlist.h"
+#include "mesgqueue.h"
 
 int g_fd, g_fdclient;
 char g_leaderinfo[MAXNAME + 20]; //keeps leader/sequencer info
@@ -19,6 +20,7 @@ pthread_t g_keep_alive_thread_client;
 pthread_t g_fgets_thread_client;
 
 //todo: name requirement: 1) unique name, 2) not containing ':'
+//todo: Enqueue(SendQueue, msg) if seq# != 0, before sendto(msg)
 
 //sequencer
 void DoSequencerMessageQueueOperation(char* recv_data, sockaddr_in recvaddr) {
@@ -85,6 +87,7 @@ void SequencerController(char* recv_data, sockaddr_in addr){
 		char send_data_chksum[BUFSIZE];
 		sprintf(send_data_chksum, "%d:%s", chash(buffer), buffer);
 
+		EnqueueMessageQueue(&g_SendQueue, send_data_chksum, seq, addr);
 		//send a list of users to the client
 		sendto(g_fd, send_data_chksum, strlen(send_data_chksum), 0, 
 			(struct sockaddr *)&addr, sizeof(addr));
@@ -111,7 +114,8 @@ void SequencerController(char* recv_data, sockaddr_in addr){
 		//todo: implement this
 		// Entry en = MsgQueueDequeue(SentQueue, atoi(recv_data), addr);
 		// if (en != NULL) {
-		// 	sendto("chksum:en->seq:en->msg", addr);
+		//	EnqueueMessageQueue(&g_SendQueue, send_data_chksum, seq, current->addr);
+		// 	sendto(en->msg, addr);
 		// }
 	}
 	else {
@@ -141,7 +145,9 @@ void MultiCast(char* msg){
 
 		char send_data_chksum[BUFSIZE];
 		sprintf(send_data_chksum, "%d:%s", chash(msgwithseq), msgwithseq);
-
+		if (seq != 0) {
+			EnqueueMessageQueue(&g_SendQueue, send_data_chksum, seq, current->addr);
+		}
 		sendto(g_fd, send_data_chksum, 
 			strlen(send_data_chksum), 
 			0, 
@@ -220,10 +226,6 @@ void DoClientMessageQueueOperation(char* recv_data, sockaddr_in recvaddr) {
 void ClientController(char* recv_data, sockaddr_in recvaddr){
 	char *cmd;
 	cmd = strsep(&recv_data, ":");
-
-	// if (atoi(seqstr) != 0) {
-	// 	printf("***debug client: %s: %s: %s\n", seqstr, cmd, recv_data);
-	// }
 
 	//from server/sequencer
 	//response to register req, it should get user name
@@ -305,7 +307,8 @@ void ClientController(char* recv_data, sockaddr_in recvaddr){
 		//todo: implement this
 		// Entry en = MsgQueueDequeue(SentQueue, atoi(recv_data), addr);
 		// if (en != NULL) {
-		// 	sendto("chksum:en->seq:en->msg", addr);
+		// EnqueueMessageQueue(&g_SendQueue, send_data_chksum, seq, current->addr);
+		// 	sendto(en->msg, addr);
 		// }
 	}
 	else if (strcmp(cmd, "kpa") == 0) {
@@ -385,7 +388,7 @@ int CheckSum(char* recv_data, char* out_data) {
 	char *cmd;
 	cmd = strsep(&recv_data, ":");
 	int checksum;
-	if (!isdigit(cmd[0])) {
+	if (!isdigit(cmd[0]) && cmd[0] != '-') {
 		return 0;
 	}
 	checksum = atoi(cmd);

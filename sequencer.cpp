@@ -101,8 +101,6 @@ void* ReceiveThreadWorker (void *p){
 			if (CheckSum(recv_data, recv_data2) == 1) {
 				//parse & do operation with msg
 				DoSequencerMessageQueueOperation(recv_data2, addr);
-				//*** //parse & do operation with msg
-				// SequencerController(recv_data2, addr);	
 			}
 		}
 	}

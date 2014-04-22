@@ -5,6 +5,7 @@
 #include "limits.h"
 #include "sequencer.h"
 #include "common.h"
+#include "mesgqueue.h"
 
 void *ReceiveThreadWorkerClient (void *);
 void *FgetsThreadClient (void *);
@@ -114,7 +115,6 @@ void* ReceiveThreadWorkerClient (void *p){
 		recvlen = recvfrom(g_fdclient, recv_data, BUFSIZE, 0, (struct sockaddr *)&recvaddr, &slen);
 		if (recvlen >= 0) {
 			recv_data[recvlen] = 0;
-
 			if (CheckSum(recv_data, recv_data2)) {
 				//parse & do operation with msg
 				DoClientMessageQueueOperation(recv_data2, recvaddr);
@@ -147,6 +147,7 @@ void *FgetsThreadClient (void *) {
 		char send_data_chksum[BUFSIZE];
 		sprintf(send_data_chksum, "%d:%s", chash(send_data), send_data);
 
+		EnqueueMessageQueue(&g_SendQueue, send_data_chksum, g_seqFromClientToSequencer, g_remaddrclient);
 		if (sendto(g_fdclient, send_data_chksum, strlen(send_data_chksum), 0, (struct sockaddr *)&g_remaddrclient, sizeof(g_remaddrclient))==-1) {
 			perror("sendto");
 			exit(1);
