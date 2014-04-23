@@ -42,6 +42,8 @@ int DoSequencerWork(char* name, int p){
 	//new leader has arrived. Time for all clients to update their client list
 	if (p >= 0) {
 		char clist[BUFSIZE];
+		strcpy(clist, "zer");
+		MultiCast(clist);
 		GetUpdateList(clist);
 		MultiCast(clist);
 	}

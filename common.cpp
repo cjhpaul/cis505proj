@@ -12,15 +12,14 @@ struct sockaddr_in g_remaddrclient, g_myaddr;
 int isLeaderChanged;
 int isEOF;
 int livecountForSequencer;
-int g_seqFromClientToSequencer;
-int g_seqFromSequencerToClient;
+int g_seqSend;
+int g_seqRecv;
 
 pthread_t g_pid_receive_thread_client;
 pthread_t g_keep_alive_thread_client;
 pthread_t g_fgets_thread_client;
 
 //todo: name requirement: 1) unique name, 2) not containing ':'
-//todo: Enqueue(SendQueue, msg) if seq# != 0, before sendto(msg)
 
 //sequencer
 void DoSequencerMessageQueueOperation(char* recv_data, sockaddr_in recvaddr) {
@@ -31,25 +30,35 @@ void DoSequencerMessageQueueOperation(char* recv_data, sockaddr_in recvaddr) {
 	strcpy(seqstr, cmd);
 	seq = atoi(seqstr);
 	strcpy(msg, recv_data);
+	int seqRecv = GetSeqRecvByAddr(g_alist, recvaddr);
 
-	SequencerController(msg, recvaddr); //todo: remove this
+	// todo: implement this
+	if (seq == 0) {
+		SequencerController(msg, recvaddr);
+		return;
+	}
+	EnqueueMessageQueue(&g_RecvQueue, msg, seq, recvaddr);
+	
+	char buffer1[BUFSIZE];
+	Show(g_RecvQueue, buffer1);
+	printf("***debug: seqRecv:seq %d:%d, msgqueue: %s", seqRecv+1, seq, buffer1);
 
-	// // todo: implement this
-	// if (seq == 0) {
-	// 	SequencerController(msg, recvaddr);
-	// 	return;
-	// }
-	// MsgQueueEnqueue(RecvQueue, seq, msg, recvaddr);
-	// if (MsgQueuePeek(RecvQueue, g_seqFromSequencerToClient+1, recvaddr) == NULL) {
-	// 	sendto("ask:seq+1");
-	// 	return;
-	// }
-	// Entry en = MsgQueueDequeue(RecvQueue, g_seqFromSequencerToClient+1, recvaddr);
-	// while (en != NULL) {
-	// 	g_seqFromSequencerToClient++;
-	// 	SequencerController(en->msg, recvaddr);
-	// 	en = MsgQueueDequeue(RecvQueue, g_seqFromSequencerToClient+1, recvaddr);
-	// }
+	if (PeekMessageQueue(g_RecvQueue, seqRecv+1, recvaddr) == NULL) {
+		char sendbuf[10];
+		sprintf(sendbuf, "ask:%d", seqRecv+1);
+		char send_data_chksum[BUFSIZE];
+		sprintf(send_data_chksum, "%d:%s", chash(sendbuf), sendbuf);
+		sendto(g_fd, send_data_chksum, strlen(send_data_chksum), 0, 
+			(struct sockaddr *)&recvaddr, sizeof(recvaddr));
+		return;
+	}
+	struct mnode *en;
+	en = DequeueMessageQueue(&g_RecvQueue, seqRecv+1, recvaddr);
+	while (en != NULL) {
+		SetSeqRecvByAddr(g_alist, recvaddr, ++seqRecv);
+		SequencerController(en->mesg, recvaddr);
+		en = DequeueMessageQueue(&g_RecvQueue, seqRecv+1, recvaddr);
+	}
 	return;
 }
 
@@ -81,7 +90,8 @@ void SequencerController(char* recv_data, sockaddr_in addr){
 
 		//out-protocol: res:clientip:clientport:userlist
 		ShowListWithLeader(listbuffer);
-		int seq = GetNextSequenceNumberByAddr(g_alist, addr);
+		int seq = GetSeqSendByAddr(g_alist, addr);
+		SetSeqSendByAddr(g_alist, addr, ++seq);
 		sprintf(buffer, "%d:res:%s:%d:%s", seq, inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), listbuffer);
 
 		char send_data_chksum[BUFSIZE];
@@ -112,11 +122,13 @@ void SequencerController(char* recv_data, sockaddr_in addr){
 	}
 	else if (strcmp(cmd, "ask") == 0){
 		//todo: implement this
-		// Entry en = MsgQueueDequeue(SentQueue, atoi(recv_data), addr);
-		// if (en != NULL) {
-		//	EnqueueMessageQueue(&g_SendQueue, send_data_chksum, seq, current->addr);
-		// 	sendto(en->msg, addr);
-		// }
+		struct mnode* en;
+		en = DequeueMessageQueue(&g_SendQueue, atoi(recv_data), addr);
+		if (en != NULL) {
+			EnqueueMessageQueue(&g_SendQueue, en->mesg, en->seqNum, en->addr);
+			sendto(g_fd, en->mesg, strlen(en->mesg), 0, 
+				(struct sockaddr *)&addr, sizeof(addr));
+		}
 	}
 	else {
 		printf("nothing\n");
@@ -129,7 +141,8 @@ void MultiCast(char* msg){
 	struct anode* current = g_alist;
 	char msgwithseq[BUFSIZE];
 	int DoWeGetSeqNumber = 0;
-	if (msg[0] == 'k' && msg[1] == 'p' && msg[2] == 'a') {
+	if ((msg[0] == 'k' && msg[1] == 'p' && msg[2] == 'a') ||
+		(msg[0] == 'z' && msg[1] == 'e' && msg[2] == 'r')) {
 		DoWeGetSeqNumber = 1;
 	}
 	//multicasting for all the registered clients
@@ -139,7 +152,8 @@ void MultiCast(char* msg){
 		if (DoWeGetSeqNumber){
 			seq = 0;
 		} else {
-			seq = GetNextSequenceNumberByAddr(g_alist, current->addr);
+			seq = GetSeqSendByAddr(g_alist, current->addr);
+			SetSeqSendByAddr(g_alist, current->addr, ++seq);
 		}
 		sprintf(msgwithseq, "%d:%s", seq, msg);
 
@@ -147,6 +161,7 @@ void MultiCast(char* msg){
 		sprintf(send_data_chksum, "%d:%s", chash(msgwithseq), msgwithseq);
 		if (seq != 0) {
 			EnqueueMessageQueue(&g_SendQueue, send_data_chksum, seq, current->addr);
+			printf("***debug: seq:seqSend %d:%d multicast: %s\n", seq, g_seqSend, send_data_chksum);
 		}
 		sendto(g_fd, send_data_chksum, 
 			strlen(send_data_chksum), 
@@ -200,26 +215,36 @@ void DoClientMessageQueueOperation(char* recv_data, sockaddr_in recvaddr) {
 	strcpy(seqstr, cmd);
 	seq = atoi(seqstr);
 	strcpy(msg, recv_data);
-
-	ClientController(msg, recvaddr); //todo: remove this
-
-	// // todo: implement this
-	// if (seq == 0) { //ignore seq#
-	// 	ClientController(msg, recvaddr);
-	// }
-	// if (g_seqFromClientToSequencer >= seq) { //duplicated
-	// 	return;
-	// }
-	// PutMessageQueue(seq, msg, recvaddr)
-	// Entry en = DequeueMessageQueue(RecvQueue, g_seqFromClientToSequencer+1, recvaddr);
-	// while (en != NULL) {
-	// 	g_seqFromClientToSequencer++;
-	// 	ClientController(en->msg, en->addr);
-	// 	en = DequeueMessageQueue(RecvQueue, g_seqFromClientToSequencer+1, recvaddr);
-	// }
-	// if (MsgQueueCounter(RecvQueue) != 0) {
-	// 	sendto("ask:g_seqFromClientToSequencer+1");
-	// }
+	
+	if (msg[0] == 'z' && msg[1] == 'e' && msg[2] == 'r') {
+		g_seqSend = 0;
+		g_seqRecv = 0; //new leader elected
+	}
+	if (seq != 0)
+		printf("***debug: clientop: %s, %d:%d\n", msg, seq, g_seqRecv+1);
+	// todo: implement this
+	if (seq == 0) { //ignore seq#
+		ClientController(msg, recvaddr);
+	}
+	if (g_seqRecv >= seq) { //duplicated
+		return;
+	}
+	EnqueueMessageQueue(&g_RecvQueue, msg, seq, recvaddr);
+	struct mnode* en;
+	en = DequeueMessageQueue(&g_RecvQueue, g_seqRecv+1, recvaddr);
+	while (en != NULL) {
+		g_seqRecv++;
+		ClientController(en->mesg, en->addr);
+		en = DequeueMessageQueue(&g_RecvQueue, g_seqRecv+1, recvaddr);
+	}
+	if (MsgQCount(g_RecvQueue) != 0) {
+		char sendbuf[10];
+		sprintf(sendbuf, "ask:%d", g_seqRecv+1);
+		char send_data_chksum[BUFSIZE];
+		sprintf(send_data_chksum, "%d:%s", chash(sendbuf), sendbuf);
+		sendto(g_fd, send_data_chksum, strlen(send_data_chksum), 0, 
+			(struct sockaddr *)&recvaddr, sizeof(recvaddr));
+	}
 	return;
 }
 //controller for client
@@ -305,11 +330,13 @@ void ClientController(char* recv_data, sockaddr_in recvaddr){
 	}
 	else if (strcmp(cmd, "ask") == 0){
 		//todo: implement this
-		// Entry en = MsgQueueDequeue(SentQueue, atoi(recv_data), addr);
-		// if (en != NULL) {
-		// EnqueueMessageQueue(&g_SendQueue, send_data_chksum, seq, current->addr);
-		// 	sendto(en->msg, addr);
-		// }
+		struct mnode* en;
+		en = DequeueMessageQueue(&g_SendQueue, atoi(recv_data), recvaddr);
+		if (en != NULL) {
+			EnqueueMessageQueue(&g_SendQueue, en->mesg, en->seqNum, en->addr);
+			sendto(g_fd, en->mesg, strlen(en->mesg), 0, 
+				(struct sockaddr *)&recvaddr, sizeof(recvaddr));
+		}
 	}
 	else if (strcmp(cmd, "kpa") == 0) {
 		if (strcmp(recv_data, "KEEP_ALIVE") == 0){
@@ -360,7 +387,6 @@ void UpdateClientList(char* recv_data){
 
 //leader is whoever last joined in the chat
 //return port number of the new leader
-//todo: select alphabetically ordered leader
 int LeaderElection(char* name, char* leaderName) {
 	struct anode* current = g_alist;
 	if (NULL == g_alist) {

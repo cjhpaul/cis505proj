@@ -21,8 +21,8 @@ int DoClientWork(char* name, char* port){
 	isEOF = 0;
 	isLeaderChanged = 0;
 	livecountForSequencer = 0;
-	g_seqFromClientToSequencer = 0;
-	g_seqFromSequencerToClient = 0;
+	g_seqSend = 0;
+	g_seqRecv = 0;
 
 	socklen_t slen = sizeof(g_remaddrclient);
 	if ((g_fdclient=socket(AF_INET, SOCK_DGRAM, 0))==-1)
@@ -142,12 +142,12 @@ void *FgetsThreadClient (void *) {
 			}
 		}
 		//out-protocol: msg:MessageToSendToSequencer
-		sprintf(send_data, "%d:msg:%s", ++g_seqFromClientToSequencer, msg_buffer);
+		sprintf(send_data, "%d:msg:%s", ++g_seqSend, msg_buffer);
 
 		char send_data_chksum[BUFSIZE];
 		sprintf(send_data_chksum, "%d:%s", chash(send_data), send_data);
+		EnqueueMessageQueue(&g_SendQueue, send_data_chksum, g_seqSend, g_remaddrclient);
 
-		EnqueueMessageQueue(&g_SendQueue, send_data_chksum, g_seqFromClientToSequencer, g_remaddrclient);
 		if (sendto(g_fdclient, send_data_chksum, strlen(send_data_chksum), 0, (struct sockaddr *)&g_remaddrclient, sizeof(g_remaddrclient))==-1) {
 			perror("sendto");
 			exit(1);
