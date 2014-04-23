@@ -105,17 +105,16 @@ struct mnode* DequeueMessageQueue(struct mnode** headRef, int seqNum, struct soc
 }
  
 void Show(struct mnode* head, char* buffer){
- 
+  char line[MSGSIZE];
+  strcpy(buffer, "");
   struct mnode* current = head;
-  
-  strcpy(buffer, "All messages:\n");
- 
-  while(current!=NULL){
-     strcat(buffer, current->mesg);
-     strcat(buffer, "\n");
-     current = current->next;
-    
- 
+  while (current != NULL) {
+    sprintf(line, "***%d:%s:%d\n", 
+      current->seqNum,
+      current->mesg, 
+      ntohs(current->addr.sin_port));
+    strcat(buffer, line);
+    current = current->next;
   }
 }
  

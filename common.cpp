@@ -32,16 +32,11 @@ void DoSequencerMessageQueueOperation(char* recv_data, sockaddr_in recvaddr) {
 	strcpy(msg, recv_data);
 	int seqRecv = GetSeqRecvByAddr(g_alist, recvaddr);
 
-	// todo: implement this
 	if (seq == 0) {
 		SequencerController(msg, recvaddr);
 		return;
 	}
 	EnqueueMessageQueue(&g_RecvQueue, msg, seq, recvaddr);
-	
-	char buffer1[BUFSIZE];
-	Show(g_RecvQueue, buffer1);
-	printf("***debug: seqRecv:seq %d:%d, msgqueue: %s", seqRecv+1, seq, buffer1);
 
 	if (PeekMessageQueue(g_RecvQueue, seqRecv+1, recvaddr) == NULL) {
 		char sendbuf[10];
@@ -121,7 +116,6 @@ void SequencerController(char* recv_data, sockaddr_in addr){
 		ZeroizeLiveCount(g_alist, name);
 	}
 	else if (strcmp(cmd, "ask") == 0){
-		//todo: implement this
 		struct mnode* en;
 		en = DequeueMessageQueue(&g_SendQueue, atoi(recv_data), addr);
 		if (en != NULL) {
@@ -141,6 +135,7 @@ void MultiCast(char* msg){
 	struct anode* current = g_alist;
 	char msgwithseq[BUFSIZE];
 	int DoWeGetSeqNumber = 0;
+	int seq;
 	if ((msg[0] == 'k' && msg[1] == 'p' && msg[2] == 'a') ||
 		(msg[0] == 'z' && msg[1] == 'e' && msg[2] == 'r')) {
 		DoWeGetSeqNumber = 1;
@@ -148,7 +143,6 @@ void MultiCast(char* msg){
 	//multicasting for all the registered clients
 	while (current != NULL) {
 		//do multicast
-		int seq;
 		if (DoWeGetSeqNumber){
 			seq = 0;
 		} else {
@@ -161,7 +155,6 @@ void MultiCast(char* msg){
 		sprintf(send_data_chksum, "%d:%s", chash(msgwithseq), msgwithseq);
 		if (seq != 0) {
 			EnqueueMessageQueue(&g_SendQueue, send_data_chksum, seq, current->addr);
-			printf("***debug: seq:seqSend %d:%d multicast: %s\n", seq, g_seqSend, send_data_chksum);
 		}
 		sendto(g_fd, send_data_chksum, 
 			strlen(send_data_chksum), 
@@ -220,9 +213,6 @@ void DoClientMessageQueueOperation(char* recv_data, sockaddr_in recvaddr) {
 		g_seqSend = 0;
 		g_seqRecv = 0; //new leader elected
 	}
-	if (seq != 0)
-		printf("***debug: clientop: %s, %d:%d\n", msg, seq, g_seqRecv+1);
-	// todo: implement this
 	if (seq == 0) { //ignore seq#
 		ClientController(msg, recvaddr);
 	}
@@ -329,7 +319,6 @@ void ClientController(char* recv_data, sockaddr_in recvaddr){
 		g_port = ntohs(recvaddr.sin_port);
 	}
 	else if (strcmp(cmd, "ask") == 0){
-		//todo: implement this
 		struct mnode* en;
 		en = DequeueMessageQueue(&g_SendQueue, atoi(recv_data), recvaddr);
 		if (en != NULL) {

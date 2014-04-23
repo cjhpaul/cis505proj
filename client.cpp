@@ -71,6 +71,9 @@ int DoClientWork(char* name, char* port){
 				pthread_cancel(g_pid_receive_thread_client);				
 				pthread_cancel(g_fgets_thread_client);
 				DeleteNode(&g_alist, name);
+				RemoveEntireMessage(&g_SendQueue);
+				RemoveEntireMessage(&g_RecvQueue);
+				//assumes the sequencer role
 				DoSequencerWork(name, myport);
 				pthread_join(g_pid_receive_thread_client, NULL);
 				pthread_join(g_fgets_thread_client, NULL);
