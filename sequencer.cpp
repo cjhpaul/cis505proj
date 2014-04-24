@@ -2,6 +2,7 @@
 #include "sequencer.h"
 #include "limits.h"
 #include "addrlist.h"
+#include "mesgqueue.h"
 #include "getip.h"
 #include "common.h"
 #include <ifaddrs.h>
@@ -74,6 +75,30 @@ int DoSequencerWork(char* name, int p){
 
 	//fgets loop
 	while(fgets(msg, sizeof(msg), stdin) != NULL){
+		if (DEBUG) { //debug
+			char debugBef[BUFSIZE];
+			char debug_chksum[BUFSIZE];
+			if (strcmp(msg, "debug show\n") == 0) {
+				Show(g_SendQueue, debugBef);
+				printf("SendQueue:\n%s\n", debugBef);
+				Show(g_RecvQueue, debugBef);
+				printf("RecvQueue:\n%s\n", debugBef);
+				continue;
+			}
+			else if (strcmp(msg, "debug lost\n") == 0) {
+				int seq;
+				printf("Content for lost message: ");
+				fgets(msg, sizeof(msg), stdin);
+				seq = GetSeqSendByAddr(g_alist, g_alist->addr);
+				SetSeqSendByAddr(g_alist, g_alist->addr, ++seq);
+				char debugName[MAXNAME];
+				GetNameByAddr(g_alist, g_alist->addr, debugName);
+				sprintf(debugBef, "%d:msg:%s:: %s", seq, debugName, msg);
+				sprintf(debug_chksum, "%d:%s", chash(debugBef), debugBef);
+				EnqueueMessageQueue(&g_SendQueue, debug_chksum, seq, g_alist->addr);
+				continue;
+			}
+		}
 		sprintf(send_data, "msg:%s:: %s", name, msg);
 		MultiCast(send_data);
     }

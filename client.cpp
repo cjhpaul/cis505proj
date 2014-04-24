@@ -133,6 +133,31 @@ void *FgetsThreadClient (void *) {
 	char msg_buffer[MSGSIZE];
 
 	while(fgets(msg_buffer, sizeof(msg_buffer), stdin) != NULL){
+		if (DEBUG) { //debug
+			char debugBef[BUFSIZE];
+			// char debug_chksum[BUFSIZE];
+			if (strcmp(msg_buffer, "debug show\n") == 0) {
+				Show(g_SendQueue, debugBef);
+				printf("SendQueue:\n%s\n", debugBef);
+				Show(g_RecvQueue, debugBef);
+				printf("RecvQueue:\n%s\n", debugBef);
+				printf("Seq# send:%d, recv: %d\n", g_seqSend, g_seqRecv);
+				continue;
+			}
+			else if (strcmp(msg_buffer, "debug dup\n") == 0) {
+				printf("Content for duplicated message: ");
+				fgets(msg_buffer, sizeof(msg_buffer), stdin);
+				//g_seqSend will not get incremented
+				sprintf(send_data, "%d:msg:%s", (g_seqSend + 1), msg_buffer);
+				char send_data_chksum[BUFSIZE];
+				sprintf(send_data_chksum, "%d:%s", chash(send_data), send_data);
+				EnqueueMessageQueue(&g_SendQueue, send_data_chksum, g_seqSend, g_remaddrclient);
+				sendto(g_fdclient, send_data_chksum, strlen(send_data_chksum), 0, (struct sockaddr *)&g_remaddrclient, sizeof(g_remaddrclient));
+				EnqueueMessageQueue(&g_SendQueue, send_data_chksum, g_seqSend, g_remaddrclient);
+				sendto(g_fdclient, send_data_chksum, strlen(send_data_chksum), 0, (struct sockaddr *)&g_remaddrclient, sizeof(g_remaddrclient));
+				continue;
+			}
+		}
 		//update the leader/sequencer info
 		if (isLeaderChanged) {
 			isLeaderChanged = 0;

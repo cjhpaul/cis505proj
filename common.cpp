@@ -40,7 +40,7 @@ void DoSequencerMessageQueueOperation(char* recv_data, sockaddr_in recvaddr) {
 
 	if (PeekMessageQueue(g_RecvQueue, seqRecv+1, recvaddr) == NULL) {
 		char sendbuf[10];
-		sprintf(sendbuf, "ask:%d", seqRecv+1);
+		sprintf(sendbuf, "0:ask:%d", seqRecv+1);
 		char send_data_chksum[BUFSIZE];
 		sprintf(send_data_chksum, "%d:%s", chash(sendbuf), sendbuf);
 		sendto(g_fd, send_data_chksum, strlen(send_data_chksum), 0, 
@@ -229,10 +229,10 @@ void DoClientMessageQueueOperation(char* recv_data, sockaddr_in recvaddr) {
 	}
 	if (MsgQCount(g_RecvQueue) != 0) {
 		char sendbuf[10];
-		sprintf(sendbuf, "ask:%d", g_seqRecv+1);
+		sprintf(sendbuf, "0:ask:%d", g_seqRecv+1);
 		char send_data_chksum[BUFSIZE];
 		sprintf(send_data_chksum, "%d:%s", chash(sendbuf), sendbuf);
-		sendto(g_fd, send_data_chksum, strlen(send_data_chksum), 0, 
+		sendto(g_fdclient, send_data_chksum, strlen(send_data_chksum), 0, 
 			(struct sockaddr *)&recvaddr, sizeof(recvaddr));
 	}
 	return;

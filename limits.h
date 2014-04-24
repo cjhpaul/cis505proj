@@ -5,3 +5,4 @@
 #define HEARTBEAT_TIME 1
 #define AUDIT_TIME 4
 #define MESGQUEUESIZE 50
+#define DEBUG 1

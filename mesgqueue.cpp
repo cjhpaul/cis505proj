@@ -108,10 +108,12 @@ void Show(struct mnode* head, char* buffer){
   char line[MSGSIZE];
   strcpy(buffer, "");
   struct mnode* current = head;
+  char shortmsg[31];
   while (current != NULL) {
+    memcpy(&shortmsg, &(current->mesg), 30);
     sprintf(line, "***%d:%s:%d\n", 
       current->seqNum,
-      current->mesg, 
+      shortmsg, 
       ntohs(current->addr.sin_port));
     strcat(buffer, line);
     current = current->next;
