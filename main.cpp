@@ -12,11 +12,6 @@ int main(int argc, char **argv)
 	addrtest();
 	return 0;
 #endif
-	// char ctest[BUFSIZE];
-	// strcpy(ctest, "testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttest");
-	// std::hash<char*> ch_hash;
-	// printf("hash: %lu\n", ch_hash(ctest));
-
 	int result;
 	//name length check
 	if (strlen(argv[1]) >= MAXNAME)
@@ -27,12 +22,12 @@ int main(int argc, char **argv)
 	//sequencer
 	if (argc == 2){
 		result = DoSequencerWork(argv[1], -1);
-		printf("result: %d\n", result);
+		printf("Successfully exited\n");
 	}
 	//client
 	else if (argc == 3){
 		result = DoClientWork(argv[1], argv[2]);
-		printf("result: %d\n", result);
+		printf("Successfully exited\n");
 	}
 	else {
 		printf("Usage: dchat name, or dchat name ip:port\n");

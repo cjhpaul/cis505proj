@@ -7,46 +7,30 @@ struct mnode* g_SendQueue = NULL;
 struct mnode* g_RecvQueue = NULL;
 
 void EnqueueMessageQueue(struct mnode** headRef, char *mesg, int seqNum, sockaddr_in addr) {
- 
-  // check if the linked list has more than 50 nodes
- 
-  int size = MsgQCount(*headRef);
-  if (size > MESGQUEUESIZE){
-    struct mnode* head = *headRef;
-    memset(&head->mesg, 0, sizeof(head->mesg));
-    strcpy(head->mesg, mesg);
-    memcpy(&(head->addr), &addr, sizeof(head->addr));
-    head->seqNum = seqNum;
-    return;
-  }
- 
-  // create new node and set up its parameters
+  //adding
   struct mnode* newNode = new mnode;
-  strcpy(newNode->mesg, mesg);
   memcpy(&(newNode->addr), &addr, sizeof(newNode->addr));
+  strcpy(newNode->mesg, mesg);
   newNode->seqNum = seqNum;
-  newNode->next = NULL;
- 
-  struct mnode* current = *headRef;
-  // first we need to check if the head itself is NULL (which means that this is the first time that push is being called
-  if (current==NULL){
-    *headRef = newNode;
-    return;
+  newNode->next = *headRef;
+  *headRef = newNode;
+
+  //removing if it exceeds max#
+  if (MsgQCount(*headRef) > MESGQUEUESIZE){
+    struct mnode* current = *headRef;
+    while((current->next)->next != NULL){
+      current = current->next;
+    }
+    struct mnode* toRemove = current->next;
+    current->next = NULL;
+    delete(toRemove);
   }
- 
-  // now need to locate the tail
-  while(current->next!=NULL){
-    current = current->next;
-  }
- 
-  current->next = newNode;
- 
+  return;
 }
  
 struct mnode* PeekMessageQueue(struct mnode* headRef, int seqNum, struct sockaddr_in addr){
 
   struct mnode* current = headRef;
-  struct mnode* rtnNode = new mnode;
   //struct mnode* prev;
 
   // handle NULL case                                                                                                                                                               
@@ -71,7 +55,6 @@ struct mnode* DequeueMessageQueue(struct mnode** headRef, int seqNum, struct soc
 
   struct mnode* current = *headRef;
   struct mnode* prev;
-  struct mnode* rtnNode = new mnode;
 
   // handle NULL case
   if (current==NULL){

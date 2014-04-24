@@ -19,8 +19,6 @@ pthread_t g_pid_receive_thread_client;
 pthread_t g_keep_alive_thread_client;
 pthread_t g_fgets_thread_client;
 
-//todo: name requirement: 1) unique name, 2) not containing ':'
-
 //sequencer
 void DoSequencerMessageQueueOperation(char* recv_data, sockaddr_in recvaddr) {
 	int seq;
