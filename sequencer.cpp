@@ -98,6 +98,31 @@ int DoSequencerWork(char* name, int p){
 				EnqueueMessageQueue(&g_SendQueue, debug_chksum, seq, g_alist->addr);
 				continue;
 			}
+			else if (strcmp(msg, "debug order\n") == 0) {
+				int seq;
+				char debugName[MAXNAME];
+				GetNameByAddr(g_alist, g_alist->addr, debugName);
+				printf("Sending msg#3, msg#2, and then msg#1 in order to test fully ordered messages.\n");
+				printf("Client should receive msg#1, msg#2, and then msg#3 in order.\n");
+				seq = GetSeqSendByAddr(g_alist, g_alist->addr);
+				SetSeqSendByAddr(g_alist, g_alist->addr, seq+3);
+				//sending msg3
+				sprintf(debugBef, "%d:msg:%s:: im msg3\n", seq+3, debugName);
+				sprintf(debug_chksum, "%d:%s", chash(debugBef), debugBef);
+				EnqueueMessageQueue(&g_SendQueue, debug_chksum, seq+3, g_alist->addr);
+				sendto(g_fd, debug_chksum, strlen(debug_chksum), 0, (struct sockaddr *)&(g_alist->addr), sizeof(g_alist->addr));
+				//sending msg2
+				sprintf(debugBef, "%d:msg:%s:: im msg2\n", seq+2, debugName);
+				sprintf(debug_chksum, "%d:%s", chash(debugBef), debugBef);
+				EnqueueMessageQueue(&g_SendQueue, debug_chksum, seq+2, g_alist->addr);
+				sendto(g_fd, debug_chksum, strlen(debug_chksum), 0, (struct sockaddr *)&(g_alist->addr), sizeof(g_alist->addr));
+				//sending msg1
+				sprintf(debugBef, "%d:msg:%s:: im msg1\n", seq+1, debugName);
+				sprintf(debug_chksum, "%d:%s", chash(debugBef), debugBef);
+				EnqueueMessageQueue(&g_SendQueue, debug_chksum, seq+1, g_alist->addr);
+				sendto(g_fd, debug_chksum, strlen(debug_chksum), 0, (struct sockaddr *)&(g_alist->addr), sizeof(g_alist->addr));
+				continue;
+			}
 		}
 		sprintf(send_data, "msg:%s:: %s", name, msg);
 		MultiCast(send_data);
