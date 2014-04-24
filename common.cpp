@@ -136,8 +136,7 @@ void MultiCast(char* msg){
 	char msgwithseq[BUFSIZE];
 	int DoWeGetSeqNumber = 0;
 	int seq;
-	if ((msg[0] == 'k' && msg[1] == 'p' && msg[2] == 'a') ||
-		(msg[0] == 'z' && msg[1] == 'e' && msg[2] == 'r')) {
+	if (msg[0] == 'z' && msg[1] == 'e' && msg[2] == 'r') {
 		DoWeGetSeqNumber = 1;
 	}
 	//multicasting for all the registered clients
@@ -330,11 +329,11 @@ void ClientController(char* recv_data, sockaddr_in recvaddr){
 	else if (strcmp(cmd, "kpa") == 0) {
 		if (strcmp(recv_data, "KEEP_ALIVE") == 0){
 			char alive[20];
-			strcpy(alive, "0:kpa:ALIVE");
+			sprintf(alive, "%d:kpa:ALIVE", ++g_seqSend);
 
 			char send_data_chksum[BUFSIZE];
 			sprintf(send_data_chksum, "%d:%s", chash(alive), alive);
-
+			EnqueueMessageQueue(&g_SendQueue, send_data_chksum, g_seqSend, recvaddr);
 			socklen_t slen = sizeof(recvaddr);
 			if (sendto(g_fdclient, send_data_chksum, strlen(send_data_chksum), 0, (struct sockaddr *)&recvaddr, slen)==-1) {
 				perror("sendto");
